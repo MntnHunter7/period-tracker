@@ -8,7 +8,6 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="PeriTrack">
-  <!-- Eingebettetes App-Icon (rosa Kalender mit Herz) -->
   <link rel="apple-touch-icon" href="data:image/svg+xml,
     <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'>
       <defs>
@@ -128,6 +127,7 @@
     .cycle-day.period-num { color: #e91e63; }
     .cycle-day.fertile-num { color: #2e7d32; }
     .cycle-day.ovulation-num { color: #1b5e20; }
+    .cycle-day.normal-num { color: #666; }
 
     .legend {
       display: flex;
@@ -400,11 +400,10 @@
     <h3>Willkommen bei PeriTrack 🌸</h3>
     <div class="onboarding-step"><p><strong>1. Kalender</strong><br>Tippe auf einen Tag, um deine Periode, Symptome oder Stimmung einzutragen. Heute ist <strong>fett umrandet</strong>.</p></div>
     <div class="onboarding-step"><p><strong>2. Farben & Zyklustag</strong><br>
-      🔴 Rot = Periode (kleine rote Zahl = Zyklustag)<br>
-      🟢 Grün = fruchtbar (kleine grüne Zahl = Zyklustag)<br>
-      🥬 Dunkelgrün = Eisprung (auch mit Zyklustag)<br>
-      🌸 Hellrot = erwartete Periode<br>
-      <em>Jeder Zyklus wird von Tag 1 (Periodenbeginn) durchnummeriert.</em></p></div>
+      Jeder Zyklus wird von Tag 1 (Periodenbeginn) durchnummeriert.<br>
+      🔴 Rot = Periode | 🟢 Grün = fruchtbar | 🥬 Dunkelgrün = Eisprung<br>
+      🔘 Graue Zahl = übrige Zyklustage.<br>
+      So siehst du sofort, wie lang dein Zyklus ist.</p></div>
     <div class="onboarding-step"><p><strong>3. Vorhersage</strong><br>Sobald du <strong>zwei Perioden</strong> eingetragen hast, berechnet die App bis zu 12 Monate im Voraus.</p></div>
     <div class="onboarding-step"><p><strong>4. Symptome & Notizen</strong><br>Einträge wie Krämpfe, Stimmung oder Zervixschleim helfen dir, deinen Körper besser zu verstehen – sie fließen aber nicht in die Berechnung der Vorhersage ein.</p></div>
     <div class="onboarding-step"><p><strong>5. Optionale Felder</strong><br>In den <em>Einstellungen</em> kannst du erweiterte Einträge aktivieren.</p></div>
@@ -494,7 +493,7 @@
       [...symptomsContainer.children].forEach(c=>c.classList.toggle('selected', arr.includes(c.textContent)));
     }
 
-    // Neue Vorhersage-Funktion mit DURCHGEHENDER Zyklus-Nummerierung
+    // Berechnung mit VOLLSTÄNDIGER Zyklus-Nummerierung für alle Tage
     function calculatePredictions(allData) {
       const bleedingDays = allData.filter(e=>e.bleeding?.active).sort((a,b)=>a.date.localeCompare(b.date));
       if (!bleedingDays.length) return { nextStart: null, ovulationDay: null, fertileDays: [], predictedPeriodDays: [], cycleDayMap: {}, medianCycle: null };
@@ -528,40 +527,26 @@
 
       let currentCycleStart = new Date(firstNextStart);
       while (currentCycleStart <= limitDate) {
-        // Periode dieses Zyklus (Tag 1 bis medianPeriod)
-        for (let i=0; i<medianPeriod; i++) {
-          const d = new Date(currentCycleStart);
-          d.setDate(d.getDate()+i);
-          const ds = formatDate(d);
-          allPredictedPeriodDays.push(ds);
-          cycleDayMap[ds] = i+1; // Tag 1,2,3...
-        }
         const nextStart = new Date(currentCycleStart);
         nextStart.setDate(nextStart.getDate()+medianCycle);
-        const ovulation = new Date(nextStart);
-        ovulation.setDate(ovulation.getDate()-14);
-        const ovStr = formatDate(ovulation);
-        allOvulationDays.push(ovStr);
-        // Eisprungtag bekommt ebenfalls Zyklustag (14 Tage vor nächstem Start)
-        const ovulationDayNum = medianCycle - 14 + 1; // z.B. bei 28 Tagen: Tag 15
-        cycleDayMap[ovStr] = ovulationDayNum;
-
-        // Fruchtbare Tage (5 vor bis 1 nach Eisprung, ohne Eisprung selbst)
-        const fertileStart = new Date(ovulation); fertileStart.setDate(fertileStart.getDate()-5);
-        const fertileEnd = new Date(ovulation); fertileEnd.setDate(fertileEnd.getDate()+1);
-        for (let d=new Date(fertileStart); d<=fertileEnd; d.setDate(d.getDate()+1)) {
+        // Alle Tage dieses Zyklus durchnummerieren
+        let dayNum = 1;
+        for (let d = new Date(currentCycleStart); d < nextStart; d.setDate(d.getDate()+1)) {
           const ds = formatDate(d);
-          if (ds !== ovStr) {
-            allFertileDays.push(ds);
-            // Berechne Zyklustag: (Datum - Zyklusstart) + 1
-            const diff = (d - currentCycleStart) / 86400000;
-            cycleDayMap[ds] = Math.round(diff) + 1;
+          cycleDayMap[ds] = dayNum;
+          // Phasen zuordnen
+          if (dayNum <= medianPeriod) {
+            allPredictedPeriodDays.push(ds);
+          } else {
+            const ovulationDayNum = medianCycle - 14; // z.B. 15 bei 28 Tagen
+            if (dayNum === ovulationDayNum) {
+              allOvulationDays.push(ds);
+            } else if (dayNum >= ovulationDayNum - 5 && dayNum <= ovulationDayNum + 1) {
+              if (dayNum !== ovulationDayNum) allFertileDays.push(ds);
+            }
           }
+          dayNum++;
         }
-        // Restliche Tage bis zum nächsten Start (Lutealphase nach Eisprung) haben auch Zyklustag
-        // Wir könnten sie theoretisch auch mappen, aber das ist nicht nötig, da sie nicht markiert werden.
-        // Für die Anzeige reichen die bereits gemappten Tage.
-
         currentCycleStart = new Date(nextStart);
       }
 
@@ -595,10 +580,12 @@
         const cell = document.createElement('td');
         cell.dataset.date = dateStr;
 
+        const entry = allData.find(e=>e.date===dateStr);
+        const hasRealData = entry && Object.keys(entry).length > 0;
+
         let innerHTML = d;
-        // Kleine Nummer anzeigen, wenn der Tag eine Zyklustag-Nummer hat (vorhergesagte Tage)
-        if (pred.cycleDayMap && pred.cycleDayMap[dateStr]) {
-          let numClass = '';
+        if (!hasRealData && pred.cycleDayMap && pred.cycleDayMap[dateStr]) {
+          let numClass = 'normal-num';
           if (pred.predictedPeriodDays.includes(dateStr)) {
             numClass = 'period-num';
           } else if (pred.allOvulationDays.includes(dateStr)) {
@@ -611,12 +598,10 @@
         cell.innerHTML = innerHTML;
 
         if (dateStr===todayStr) cell.classList.add('today');
-        const entry = allData.find(e=>e.date===dateStr);
         if (entry) {
           cell.classList.add('has-data');
           if (entry.bleeding?.active) cell.classList.add('menstruation');
-        }
-        if (!entry?.bleeding?.active) {
+        } else {
           if (pred.predictedPeriodDays.includes(dateStr)) cell.classList.add('predicted-menstruation');
           else if (pred.allOvulationDays?.includes(dateStr)) cell.classList.add('ovulation');
           else if (pred.fertileDays.includes(dateStr)) cell.classList.add('fertile');
@@ -700,7 +685,7 @@
     document.getElementById('prev-month').addEventListener('click', ()=>{ currentMonth===0? (currentYear--,currentMonth=11) : currentMonth--; renderCalendarView(); });
     document.getElementById('next-month').addEventListener('click', ()=>{ currentMonth===11? (currentYear++,currentMonth=0) : currentMonth++; renderCalendarView(); });
     document.getElementById('today-btn').addEventListener('click', ()=>{ currentMonth=today.getMonth(); currentYear=today.getFullYear(); renderCalendarView(); });
-    document.getElementById('legend-btn').addEventListener('click', ()=>alert('Farben:\n🔴 Rot = Periode (kleine rote Zahl = Zyklustag)\n🟢 Grün = fruchtbar (kleine grüne Zahl = Zyklustag)\n🥬 Dunkelgrün = Eisprung (mit Zyklustag)\n🌸 Hellrot = erwartet'));
+    document.getElementById('legend-btn').addEventListener('click', ()=>alert('Farben:\n🔴 Rot = Periode\n🟢 Grün = fruchtbar\n🥬 Dunkelgrün = Eisprung\n🌸 Hellrot = erwartet\n🔘 Graue Zahl = übrige Zyklustage'));
 
     const onboardingOverlay = document.getElementById('onboarding-overlay');
     if(!localStorage.getItem('periTrack_onboardingDone')) onboardingOverlay.classList.remove('hidden');
@@ -742,8 +727,8 @@
           if (dateStr===todayStr) cls += ' today';
 
           let content = d;
-          if (pred.cycleDayMap && pred.cycleDayMap[dateStr]) {
-            let numClass = '';
+          if (!entry && pred.cycleDayMap && pred.cycleDayMap[dateStr]) {
+            let numClass = 'normal-num';
             if (pred.predictedPeriodDays.includes(dateStr)) numClass = 'period-num';
             else if (pred.allOvulationDays.includes(dateStr)) numClass = 'ovulation-num';
             else if (pred.fertileDays.includes(dateStr)) numClass = 'fertile-num';
