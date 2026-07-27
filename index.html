@@ -36,6 +36,7 @@
       background: #e91e63;
       color: white;
       border-radius: 0 0 20px 20px;
+      position: relative;
     }
     header h1 { font-size: 1.4rem; font-weight: 600; }
     .calendar-nav {
@@ -44,6 +45,7 @@
       align-items: center;
       padding: 10px 16px;
       background: #fff;
+      gap: 8px;
     }
     .calendar-nav button {
       background: none;
@@ -52,8 +54,10 @@
       border-radius: 20px;
       font-size: 1rem;
       cursor: pointer;
+      white-space: nowrap;
     }
-    .month-year { font-weight: 600; font-size: 1.1rem; }
+    .calendar-nav button.today-btn { background: #e91e63; color: white; border-color: #e91e63; font-weight: 500; }
+    .month-year { font-weight: 600; font-size: 1.1rem; flex: 1; text-align: center; }
     table.calendar {
       width: 100%;
       border-collapse: collapse;
@@ -75,7 +79,7 @@
       border-radius: 50%;
       transition: background 0.2s;
     }
-    td.today { font-weight: bold; }
+    td.today { font-weight: bold; border: 2px solid #e91e63; }
     td.other-month { color: #ccc; }
     td.menstruation { background: #ffcdd2; border-radius: 50%; }
     td.predicted-menstruation { background: #ffebee; border-radius: 50%; }
@@ -90,6 +94,27 @@
       border-radius: 50%;
       margin: 2px auto 0;
     }
+    .legend {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding: 6px 10px;
+      font-size: 0.75rem;
+      color: #555;
+    }
+    .legend span { display: inline-flex; align-items: center; gap: 4px; }
+    .legend .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+    .dot.menstruation { background: #ffcdd2; }
+    .dot.predicted { background: #ffebee; }
+    .dot.fertile { background: #e8f5e9; }
+    .dot.ovulation { background: #a5d6a7; }
+    .prediction-bar {
+      text-align: center;
+      padding: 8px;
+      background: #fce4ec;
+      font-size: 0.9rem;
+    }
     .bottom-nav {
       display: flex;
       justify-content: space-around;
@@ -101,12 +126,13 @@
     .bottom-nav button {
       background: none;
       border: none;
-      font-size: 1rem;
+      font-size: 0.9rem;
       color: #e91e63;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 4px;
+      gap: 2px;
+      cursor: pointer;
     }
     .modal-overlay {
       position: fixed;
@@ -115,7 +141,7 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      z-index: 10;
+      z-index: 20;
       padding: 16px;
     }
     .modal {
@@ -124,7 +150,7 @@
       padding: 20px;
       width: 100%;
       max-width: 400px;
-      max-height: 80vh;
+      max-height: 85vh;
       overflow-y: auto;
     }
     .modal h3 { margin-bottom: 12px; }
@@ -154,29 +180,35 @@
     .stats { padding: 20px; }
     .stats p { margin: 8px 0; }
     .hidden { display: none !important; }
-    .prediction-bar {
-      text-align: center;
-      padding: 8px;
-      background: #fce4ec;
-      font-size: 0.9rem;
-    }
+    .advanced-fields { border-top: 1px solid #ddd; padding-top: 12px; margin-top: 8px; }
+    .toggle-label { display: flex; justify-content: space-between; align-items: center; }
+    .toggle-label input[type="checkbox"] { width: 40px; height: 24px; }
+    .onboarding-step { margin-bottom: 20px; }
   </style>
 </head>
 <body>
 <div id="app">
   <header>
     <h1>🌸 PeriTrack</h1>
+    <button id="legend-btn" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:rgba(255,255,255,0.2); border:none; color:white; border-radius:50%; width:30px; height:30px; font-size:1.2rem; cursor:pointer;" title="Legende">?</button>
   </header>
   <div id="prediction-bar" class="prediction-bar"></div>
   <div class="calendar-nav">
     <button id="prev-month">←</button>
     <span class="month-year" id="month-year"></span>
     <button id="next-month">→</button>
+    <button id="today-btn" class="today-btn">Heute</button>
   </div>
   <table class="calendar" id="calendar-table">
     <thead><tr><th>Mo</th><th>Di</th><th>Mi</th><th>Do</th><th>Fr</th><th>Sa</th><th>So</th></tr></thead>
     <tbody id="calendar-body"></tbody>
   </table>
+  <div class="legend" id="color-legend">
+    <span><span class="dot menstruation"></span> Periode</span>
+    <span><span class="dot predicted"></span> erwartet</span>
+    <span><span class="dot fertile"></span> fruchtbar</span>
+    <span><span class="dot ovulation"></span> Eisprung</span>
+  </div>
   <div class="bottom-nav">
     <button id="tab-calendar">📅 Kalender</button>
     <button id="tab-today">✏️ Heute</button>
@@ -185,6 +217,7 @@
   </div>
 </div>
 
+<!-- Tageseintrag-Modal -->
 <div id="modal" class="modal-overlay hidden">
   <div class="modal">
     <h3 id="modal-date"></h3>
@@ -214,28 +247,33 @@
         <option value="emotional">Emotional</option>
       </select>
     </div>
-    <div class="form-group">
-      <label>Zervixschleim</label>
-      <select id="cervical-mucus">
-        <option value="">--</option>
-        <option value="dry">Trocken</option>
-        <option value="creamy">Cremig</option>
-        <option value="watery">Wässrig</option>
-        <option value="eggwhite">Spinnbar (Eiklar)</option>
-      </select>
+
+    <!-- Erweiterte Felder (optional) -->
+    <div id="advanced-fields" class="advanced-fields hidden">
+      <div class="form-group">
+        <label>Zervixschleim</label>
+        <select id="cervical-mucus">
+          <option value="">--</option>
+          <option value="dry">Trocken</option>
+          <option value="creamy">Cremig</option>
+          <option value="watery">Wässrig</option>
+          <option value="eggwhite">Spinnbar (Eiklar)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Basaltemperatur (°C)</label>
+        <input type="number" id="temperature" step="0.1" placeholder="z.B. 36.5">
+      </div>
+      <div class="form-group">
+        <label>Ovulationstest</label>
+        <select id="ovulation-test">
+          <option value="">--</option>
+          <option value="positive">Positiv</option>
+          <option value="negative">Negativ</option>
+        </select>
+      </div>
     </div>
-    <div class="form-group">
-      <label>Basaltemperatur (°C)</label>
-      <input type="number" id="temperature" step="0.1" placeholder="z.B. 36.5">
-    </div>
-    <div class="form-group">
-      <label>Ovulationstest</label>
-      <select id="ovulation-test">
-        <option value="">--</option>
-        <option value="positive">Positiv</option>
-        <option value="negative">Negativ</option>
-      </select>
-    </div>
+
     <div class="form-group">
       <label>Geschlechtsverkehr</label>
       <select id="sex">
@@ -268,6 +306,30 @@
     <button class="btn" id="save-day">Speichern</button>
     <button class="btn secondary" id="delete-day">Eintrag löschen</button>
     <button class="btn secondary" id="close-modal">Abbrechen</button>
+  </div>
+</div>
+
+<!-- Onboarding Dialog -->
+<div id="onboarding-overlay" class="modal-overlay hidden">
+  <div class="modal">
+    <h3>Willkommen bei PeriTrack 🌸</h3>
+    <div class="onboarding-step">
+      <p><strong>1. Kalender</strong><br>Tippe auf einen Tag, um deine Periode, Symptome oder Stimmung einzutragen. Heute ist <strong>fett umrandet</strong>.</p>
+    </div>
+    <div class="onboarding-step">
+      <p><strong>2. Farben</strong><br>
+      🔴 <span style="background:#ffcdd2;padding:0 4px;">Rot</span> = eingetragene Periode<br>
+      🌸 <span style="background:#ffebee;padding:0 4px;">Hellrot</span> = vorhergesagte Periode<br>
+      🟢 <span style="background:#e8f5e9;padding:0 4px;">Grün</span> = fruchtbare Tage<br>
+      🥬 <span style="background:#a5d6a7;padding:0 4px;">Dunkelgrün</span> = errechneter Eisprung</p>
+    </div>
+    <div class="onboarding-step">
+      <p><strong>3. Vorhersage</strong><br>Sobald du <strong>zwei Perioden</strong> eingetragen hast, berechnet die App Zykluslänge und fruchtbare Tage.</p>
+    </div>
+    <div class="onboarding-step">
+      <p><strong>4. Optionale Felder</strong><br>In den <em>Einstellungen</em> kannst du erweiterte Einträge (Temperatur, Schleim, Ovulationstest) aktivieren – nur wenn du sie nutzt.</p>
+    </div>
+    <button class="btn" id="close-onboarding">Los geht's!</button>
   </div>
 </div>
 
@@ -373,7 +435,20 @@
     const modal = document.getElementById('modal');
     const modalDateEl = document.getElementById('modal-date');
     const predictionBar = document.getElementById('prediction-bar');
+    const advancedFields = document.getElementById('advanced-fields');
     let selectedDateStr = null;
+
+    // Einstellungen
+    const getAdvancedMode = () => localStorage.getItem('periTrack_advancedMode') === 'true';
+    const setAdvancedMode = (val) => localStorage.setItem('periTrack_advancedMode', val);
+
+    function applyAdvancedMode() {
+      if (getAdvancedMode()) {
+        advancedFields.classList.remove('hidden');
+      } else {
+        advancedFields.classList.add('hidden');
+      }
+    }
 
     // Symptom-Checkboxen
     const symptomOptions = [
@@ -403,13 +478,11 @@
       const firstDay = getFirstDayOfWeek(currentYear, currentMonth);
       calendarBody.innerHTML = '';
       let row = document.createElement('tr');
-      // Leere Zellen vor Monatsbeginn
       for (let i=0; i<firstDay; i++) {
         const cell = document.createElement('td');
         cell.classList.add('other-month');
         row.appendChild(cell);
       }
-      // Alle Daten aus DB für Vorhersage sammeln
       const allData = await getAllData();
       const predictions = calculatePredictions(allData);
 
@@ -426,7 +499,6 @@
 
         if (dateStr === todayStr) cell.classList.add('today');
 
-        // Daten aus DB prüfen
         const dayData = allData.find(entry => entry.date === dateStr);
         if (dayData) {
           cell.classList.add('has-data');
@@ -435,7 +507,6 @@
           }
         }
 
-        // Vorhersage-Klassen (nur wenn keine echten Blutungsdaten)
         if (!dayData || !(dayData.bleeding && dayData.bleeding.active)) {
           if (predictions) {
             if (predictions.predictedPeriodDays.includes(dateStr)) {
@@ -452,7 +523,6 @@
         cell.addEventListener('click', () => openDayModal(dateStr));
         row.appendChild(cell);
       }
-      // Restliche Zellen bis Samstag auffüllen
       while (row.children.length < 7) {
         const cell = document.createElement('td');
         cell.classList.add('other-month');
@@ -462,20 +532,18 @@
     }
 
     function calculatePredictions(allData) {
-      // Startdaten der Perioden finden
       const startDates = [];
       const sorted = allData.filter(e => e.bleeding && e.bleeding.active).sort((a,b) => a.date.localeCompare(b.date));
       if (sorted.length === 0) return null;
       let prevDate = null;
       for (let entry of sorted) {
         const curr = entry.date;
-        if (!prevDate || new Date(curr) - new Date(prevDate) > 86400000*1.5) { // Lücke >1 Tag
+        if (!prevDate || new Date(curr) - new Date(prevDate) > 86400000*1.5) {
           startDates.push(curr);
         }
         prevDate = curr;
       }
-      if (startDates.length < 2) return null; // mind. 2 Starts für Zykluslänge
-      // Zykluslängen
+      if (startDates.length < 2) return null;
       const cycleLengths = [];
       for (let i=1; i<startDates.length; i++) {
         const diff = (parseDate(startDates[i]) - parseDate(startDates[i-1])) / 86400000;
@@ -492,12 +560,9 @@
       }
       const nextStart = new Date(parseDate(startDates[startDates.length-1]));
       nextStart.setDate(nextStart.getDate() + medianCycle);
-      // Periodenlänge Median
       const periodLengths = [];
       for (let i=0; i<startDates.length; i++) {
         const start = parseDate(startDates[i]);
-        const endDate = new Date(start);
-        // zähle aufeinanderfolgende Tage mit Blutung ab start
         let count = 0;
         let check = new Date(start);
         while (allData.some(e => e.date === formatDate(check) && e.bleeding && e.bleeding.active)) {
@@ -508,14 +573,12 @@
       }
       periodLengths.sort((a,b)=>a-b);
       let medianPeriodLength = periodLengths[Math.floor(periodLengths.length/2)] || 5;
-      // Eisprung = nächster Start - 14
       const ovulationDate = new Date(nextStart);
       ovulationDate.setDate(ovulationDate.getDate() - 14);
       const fertileStart = new Date(ovulationDate);
       fertileStart.setDate(fertileStart.getDate() - 5);
       const fertileEnd = new Date(ovulationDate);
       fertileEnd.setDate(fertileEnd.getDate() + 1);
-      // Periodenvorhersage Tage
       const predictedPeriodDays = [];
       for (let i=0; i<medianPeriodLength; i++) {
         const day = new Date(nextStart);
@@ -541,16 +604,20 @@
       getAllData().then(allData => {
         const pred = calculatePredictions(allData);
         if (!pred) {
-          predictionBar.textContent = 'Trage mindestens zwei Perioden ein, um Vorhersagen zu erhalten.';
+          predictionBar.textContent = '👋 Trage mindestens zwei Perioden ein, um Vorhersagen zu erhalten.';
           return;
         }
         const next = parseDate(pred.nextStart);
         const diff = Math.round((next - today) / 86400000);
-        let msg = `Nächste Periode voraussichtlich am ${next.toLocaleDateString('de-DE')}`;
-        if (diff === 0) msg = 'Heute beginnt voraussichtlich deine Periode.';
-        else if (diff === 1) msg = 'Morgen beginnt voraussichtlich deine Periode.';
+        let msg = `📅 Nächste Periode: ${next.toLocaleDateString('de-DE')}`;
+        if (diff === 0) msg = '🩸 Heute beginnt voraussichtlich deine Periode.';
+        else if (diff === 1) msg = '🩸 Morgen beginnt voraussichtlich deine Periode.';
         else if (diff > 0) msg += ` (in ${diff} Tagen)`;
         else msg += ` (vor ${Math.abs(diff)} Tagen)`;
+        if (pred.ovulationDay && parseDate(pred.ovulationDay) > today) {
+          const ovDiff = Math.round((parseDate(pred.ovulationDay) - today) / 86400000);
+          if (ovDiff <= 7 && ovDiff >= 0) msg += ` · Eisprung in ${ovDiff} Tagen`;
+        }
         predictionBar.textContent = msg;
       });
     }
@@ -559,6 +626,7 @@
     function openDayModal(dateStr) {
       selectedDateStr = dateStr;
       modalDateEl.textContent = new Date(parseDate(dateStr)).toLocaleDateString('de-DE', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+      applyAdvancedMode();
       getDayData(dateStr).then(data => {
         document.getElementById('bleeding-active').checked = data?.bleeding?.active || false;
         document.getElementById('bleeding-intensity').value = data?.bleeding?.intensity || 'medium';
@@ -594,9 +662,9 @@
         },
         symptoms: getSymptomCheckboxes(),
         mood: document.getElementById('mood').value || undefined,
-        cervicalMucus: document.getElementById('cervical-mucus').value || undefined,
-        temperature: document.getElementById('temperature').value ? parseFloat(document.getElementById('temperature').value) : undefined,
-        ovulationTest: document.getElementById('ovulation-test').value || undefined,
+        cervicalMucus: getAdvancedMode() ? (document.getElementById('cervical-mucus').value || undefined) : undefined,
+        temperature: getAdvancedMode() ? (document.getElementById('temperature').value ? parseFloat(document.getElementById('temperature').value) : undefined) : undefined,
+        ovulationTest: getAdvancedMode() ? (document.getElementById('ovulation-test').value || undefined) : undefined,
         sex: document.getElementById('sex').value || undefined,
         contraception: document.getElementById('contraception').value || undefined,
         note: document.getElementById('note').value || undefined,
@@ -630,6 +698,24 @@
       if (currentMonth === 11) setCurrentMonth(currentYear+1, 0);
       else setCurrentMonth(currentYear, currentMonth+1);
     });
+    document.getElementById('today-btn').addEventListener('click', () => {
+      setCurrentMonth(today.getFullYear(), today.getMonth());
+    });
+
+    // Legende
+    document.getElementById('legend-btn').addEventListener('click', () => {
+      alert('Farben im Kalender:\n\n🔴 Dunkelrot = eingetragene Periode\n🌸 Hellrot = vorhergesagte Periode\n🟢 Hellgrün = fruchtbare Tage\n🥬 Dunkelgrün = errechneter Eisprung\n\nEin kleiner Punkt unter dem Datum zeigt an, dass du dort etwas notiert hast.');
+    });
+
+    // Onboarding
+    const onboardingOverlay = document.getElementById('onboarding-overlay');
+    if (!localStorage.getItem('periTrack_onboardingDone')) {
+      onboardingOverlay.classList.remove('hidden');
+    }
+    document.getElementById('close-onboarding').addEventListener('click', () => {
+      onboardingOverlay.classList.add('hidden');
+      localStorage.setItem('periTrack_onboardingDone', 'true');
+    });
 
     // Tabs
     document.getElementById('tab-calendar').addEventListener('click', () => {
@@ -641,33 +727,45 @@
     document.getElementById('tab-stats').addEventListener('click', async () => {
       const allData = await getAllData();
       const pred = calculatePredictions(allData);
-      let statsHtml = '<div class="stats"><h3>Statistik</h3>';
+      let statsHtml = '<div class="stats"><h3>📊 Statistik</h3>';
       if (pred) {
-        statsHtml += `<p>📏 Vorhersage Zykluslänge: ${pred.medianCycle} Tage</p>`;
-        statsHtml += `<p>🩸 Nächste Periode: ${new Date(parseDate(pred.nextStart)).toLocaleDateString('de-DE')}</p>`;
+        statsHtml += `<p>🔄 Vorhersage Zykluslänge: <strong>${pred.medianCycle} Tage</strong></p>`;
+        statsHtml += `<p>🩸 Nächste Periode: <strong>${new Date(parseDate(pred.nextStart)).toLocaleDateString('de-DE')}</strong></p>`;
+      } else {
+        statsHtml += '<p>Trage mindestens zwei Perioden ein.</p>';
       }
       const startDates = allData.filter(e => e.bleeding?.active).map(e => e.date).sort();
       if (startDates.length) {
-        statsHtml += `<p>🗓️ Aufgezeichnete Periodenstarts: ${startDates.length}</p>`;
-        statsHtml += `<p>Letzte: ${new Date(parseDate(startDates[startDates.length-1])).toLocaleDateString('de-DE')}</p>`;
+        statsHtml += `<p>🗓️ Aufgezeichnete Periodenstarts: <strong>${startDates.length}</strong></p>`;
+        statsHtml += `<p>Letzte: <strong>${new Date(parseDate(startDates[startDates.length-1])).toLocaleDateString('de-DE')}</strong></p>`;
       }
       statsHtml += '</div>';
-      document.getElementById('prediction-bar').innerHTML = '';
-      document.getElementById('calendar-body').innerHTML = '';
+      document.getElementById('calendar-body').innerHTML = statsHtml;
       document.getElementById('month-year').textContent = 'Statistik';
-      document.getElementById('calendar-body').insertAdjacentHTML('beforeend', statsHtml);
+      document.getElementById('prediction-bar').textContent = '';
     });
     document.getElementById('tab-settings').addEventListener('click', () => {
+      const advanced = getAdvancedMode();
       const settingsHtml = `
         <div class="stats">
-          <h3>Einstellungen</h3>
+          <h3>⚙️ Einstellungen</h3>
+          <div class="form-group toggle-label">
+            <span>Erweiterte Einträge (Temperatur, Schleim, Ovulationstest)</span>
+            <input type="checkbox" id="advanced-toggle" ${advanced ? 'checked' : ''}>
+          </div>
           <button class="btn" id="export-data">📤 Daten exportieren (JSON)</button>
           <button class="btn secondary" id="import-data">📥 Daten importieren</button>
           <input type="file" id="import-file" accept=".json" class="hidden">
+          <button class="btn secondary" id="restart-onboarding">👋 Onboarding erneut anzeigen</button>
         </div>`;
       document.getElementById('calendar-body').innerHTML = settingsHtml;
       document.getElementById('month-year').textContent = 'Einstellungen';
       document.getElementById('prediction-bar').textContent = '';
+
+      document.getElementById('advanced-toggle').addEventListener('change', (e) => {
+        setAdvancedMode(e.target.checked);
+        applyAdvancedMode();
+      });
       document.getElementById('export-data').addEventListener('click', async () => {
         const all = await getAllData();
         const blob = new Blob([JSON.stringify(all, null, 2)], {type: 'application/json'});
@@ -694,14 +792,18 @@
           alert('Ungültiges Format.');
         }
       });
+      document.getElementById('restart-onboarding').addEventListener('click', () => {
+        localStorage.removeItem('periTrack_onboardingDone');
+        onboardingOverlay.classList.remove('hidden');
+      });
     });
 
     // Initialisierung
     openDB().then(() => {
       setCurrentMonth(today.getFullYear(), today.getMonth());
+      applyAdvancedMode();
     });
 
-    // Service Worker registrieren
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js').catch(() => {});
