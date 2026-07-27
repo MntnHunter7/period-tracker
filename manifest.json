@@ -2,7 +2,7 @@
   "name": "PeriTrack – Perioden Tracker",
   "short_name": "PeriTrack",
   "description": "Zuverlässiger Menstruationskalender mit Vorhersage",
-  "start_url": "/",
+  "start_url": ".",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#ffffff",
