@@ -30,6 +30,7 @@
       flex-direction: column;
       box-shadow: 0 0 20px rgba(0,0,0,0.05);
       position: relative;
+      padding-bottom: 70px;
     }
     header {
       padding: 16px 16px 8px;
@@ -38,6 +39,7 @@
       color: white;
       border-radius: 0 0 20px 20px;
       position: relative;
+      z-index: 2;
     }
     header h1 { font-size: 1.4rem; font-weight: 600; }
     .calendar-nav {
@@ -97,6 +99,15 @@
       border-radius: 50%;
       margin: 2px auto 0;
     }
+    .cycle-day {
+      position: absolute;
+      bottom: 1px;
+      right: 2px;
+      font-size: 0.6rem;
+      font-weight: bold;
+      color: #e91e63;
+      line-height: 1;
+    }
     .legend {
       display: flex;
       justify-content: center;
@@ -118,13 +129,21 @@
       background: #fce4ec;
       font-size: 0.95rem;
     }
+
     .bottom-nav {
-      display: flex;
-      justify-content: space-around;
-      padding: 8px 0 env(safe-area-inset-bottom, 8px);
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 500px;
       background: white;
       border-top: 1px solid #eee;
-      margin-top: auto;
+      display: flex;
+      justify-content: space-around;
+      padding: 8px 0 calc(env(safe-area-inset-bottom, 0px) + 8px);
+      z-index: 10;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
     }
     .bottom-nav button {
       background: none;
@@ -149,7 +168,8 @@
     #history-panel .month-calendar { margin: 16px; }
     #history-panel .month-title { font-weight: 600; margin-bottom: 4px; color: #e91e63; }
     #history-panel table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-    #history-panel td { height: 36px; font-size: 0.85rem; cursor: pointer; }
+    #history-panel td { height: 36px; font-size: 0.85rem; cursor: pointer; position: relative; }
+    #history-panel .cycle-day { font-size: 0.55rem; bottom: 0; right: 1px; }
 
     .modal-overlay {
       position: fixed;
@@ -358,8 +378,8 @@
   <div class="modal">
     <h3>Willkommen bei PeriTrack 🌸</h3>
     <div class="onboarding-step"><p><strong>1. Kalender</strong><br>Tippe auf einen Tag, um deine Periode, Symptome oder Stimmung einzutragen. Heute ist <strong>fett umrandet</strong>.</p></div>
-    <div class="onboarding-step"><p><strong>2. Farben</strong><br>🔴 Rot = Periode · 🌸 Hellrot = erwartet · 🟢 Grün = fruchtbar · 🥬 Dunkelgrün = Eisprung</p></div>
-    <div class="onboarding-step"><p><strong>3. Vorhersage</strong><br>Sobald du <strong>zwei Perioden</strong> eingetragen hast, berechnet die App Zykluslänge und fruchtbare Tage.</p></div>
+    <div class="onboarding-step"><p><strong>2. Farben & Zyklustag</strong><br>🔴 Rot = Periode · 🌸 Hellrot = erwartet · 🟢 Grün = fruchtbar · 🥬 Dunkelgrün = Eisprung<br>Die kleine Zahl zeigt deinen <strong>Zyklustag</strong> (1 = erster Periodentag).</p></div>
+    <div class="onboarding-step"><p><strong>3. Vorhersage</strong><br>Sobald du <strong>zwei Perioden</strong> eingetragen hast, berechnet die App bis zu 12 Monate im Voraus.</p></div>
     <div class="onboarding-step"><p><strong>4. Symptome & Notizen</strong><br>Einträge wie Krämpfe, Stimmung oder Zervixschleim helfen dir, deinen Körper besser zu verstehen – sie fließen aber nicht in die Berechnung der Vorhersage ein.</p></div>
     <div class="onboarding-step"><p><strong>5. Optionale Felder</strong><br>In den <em>Einstellungen</em> kannst du erweiterte Einträge (Temperatur, Schleim, Ovulationstest) aktivieren – nur wenn du sie nutzt.</p></div>
     <button class="btn" id="close-onboarding">Los geht's!</button>
@@ -448,36 +468,83 @@
       [...symptomsContainer.children].forEach(c=>c.classList.toggle('selected', arr.includes(c.textContent)));
     }
 
+    // Neue Vorhersage-Funktion: Mehrere Zyklen, Cycle-Day-Map
     function calculatePredictions(allData) {
       const bleedingDays = allData.filter(e=>e.bleeding?.active).sort((a,b)=>a.date.localeCompare(b.date));
-      if (!bleedingDays.length) return null;
+      if (!bleedingDays.length) return { nextStart: null, ovulationDay: null, fertileDays: [], predictedPeriodDays: [], cycleDayMap: {}, medianCycle: null, allPredictedPeriodDays: [] };
       const startDates = [];
       let prev = null;
       for (let e of bleedingDays) {
         if (!prev || new Date(e.date)-new Date(prev) > 86400000*1.5) startDates.push(e.date);
         prev = e.date;
       }
-      if (startDates.length < 2) return null;
+      if (startDates.length < 2) return { nextStart: null, ovulationDay: null, fertileDays: [], predictedPeriodDays: [], cycleDayMap: {}, medianCycle: null, allPredictedPeriodDays: [] };
+
       const cycleLengths = [];
       for (let i=1; i<startDates.length; i++) cycleLengths.push((parseDate(startDates[i])-parseDate(startDates[i-1]))/86400000);
       const last6 = cycleLengths.slice(-6).sort((a,b)=>a-b);
       const medianCycle = last6.length%2 ? last6[Math.floor(last6.length/2)] : Math.round((last6[last6.length/2-1]+last6[last6.length/2])/2);
-      const nextStart = new Date(parseDate(startDates[startDates.length-1])); nextStart.setDate(nextStart.getDate()+medianCycle);
       const periodLengths = startDates.map(s => {
         let cnt=0, d=new Date(parseDate(s));
         while (allData.some(e=>e.date===formatDate(d) && e.bleeding?.active)) { cnt++; d.setDate(d.getDate()+1); }
         return cnt;
       }).sort((a,b)=>a-b);
       const medianPeriod = periodLengths[Math.floor(periodLengths.length/2)]||5;
-      const ovulation = new Date(nextStart); ovulation.setDate(ovulation.getDate()-14);
-      const fertileStart = new Date(ovulation); fertileStart.setDate(fertileStart.getDate()-5);
-      const fertileEnd = new Date(ovulation); fertileEnd.setDate(fertileEnd.getDate()+1);
-      const predictedPeriodDays = [], fertileDays = [];
-      for (let i=0; i<medianPeriod; i++) { const d=new Date(nextStart); d.setDate(d.getDate()+i); predictedPeriodDays.push(formatDate(d)); }
-      for (let d=new Date(fertileStart); d<=fertileEnd; d.setDate(d.getDate()+1)) {
-        if (formatDate(d)!==formatDate(ovulation)) fertileDays.push(formatDate(d));
+
+      const firstNextStart = new Date(parseDate(startDates[startDates.length-1]));
+      firstNextStart.setDate(firstNextStart.getDate()+medianCycle);
+
+      const limitDate = new Date(today.getFullYear(), today.getMonth()+12, 1); // 12 Monate im Voraus
+
+      const allPredictedPeriodDays = [];
+      const allFertileDays = [];
+      const allOvulationDays = [];
+      const cycleDayMap = {};
+
+      let currentCycleStart = new Date(firstNextStart);
+      while (currentCycleStart <= limitDate) {
+        // Periode dieses Zyklus
+        for (let i=0; i<medianPeriod; i++) {
+          const d = new Date(currentCycleStart);
+          d.setDate(d.getDate()+i);
+          const ds = formatDate(d);
+          allPredictedPeriodDays.push(ds);
+          cycleDayMap[ds] = i+1;
+        }
+        // Eisprung (14 Tage vor nächstem Start)
+        const nextStart = new Date(currentCycleStart);
+        nextStart.setDate(nextStart.getDate()+medianCycle);
+        const ovulation = new Date(nextStart);
+        ovulation.setDate(ovulation.getDate()-14);
+        const ovStr = formatDate(ovulation);
+        allOvulationDays.push(ovStr);
+        // Fruchtbare Tage (5 vor bis 1 nach Eisprung, außer Eisprung selbst)
+        const fertileStart = new Date(ovulation); fertileStart.setDate(fertileStart.getDate()-5);
+        const fertileEnd = new Date(ovulation); fertileEnd.setDate(fertileEnd.getDate()+1);
+        for (let d=new Date(fertileStart); d<=fertileEnd; d.setDate(d.getDate()+1)) {
+          const ds = formatDate(d);
+          if (ds !== ovStr) allFertileDays.push(ds);
+          if (!cycleDayMap[ds]) {
+            // Berechne Cycle Day relativ zum aktuellen Start
+            const diff = (d - currentCycleStart) / 86400000;
+            if (diff >= 0) cycleDayMap[ds] = Math.round(diff) + 1;
+          }
+        }
+        // nächster Zyklus
+        currentCycleStart = new Date(nextStart);
       }
-      return { nextStart:formatDate(nextStart), ovulationDay:formatDate(ovulation), fertileDays, predictedPeriodDays, medianCycle };
+
+      // Für die erste anstehende Periode (für Prediction-Bar)
+      return {
+        nextStart: formatDate(firstNextStart),
+        ovulationDay: allOvulationDays.length ? allOvulationDays[0] : null,
+        fertileDays: allFertileDays,
+        predictedPeriodDays: allPredictedPeriodDays,
+        cycleDayMap,
+        medianCycle,
+        allPredictedPeriodDays,
+        allOvulationDays
+      };
     }
 
     function dayDiff(d1,d2) {
@@ -496,16 +563,25 @@
       for (let d=1; d<=daysInMonth; d++) {
         if ((firstDay+d-1)%7===0 && row.children.length>0) { calendarBody.appendChild(row); row=document.createElement('tr'); }
         const date = new Date(currentYear, currentMonth, d), dateStr = formatDate(date);
-        const cell = document.createElement('td'); cell.textContent = d; cell.dataset.date = dateStr;
+        const cell = document.createElement('td');
+        cell.dataset.date = dateStr;
+
+        // Inhalt mit möglicher Cycle-Day-Nummer
+        let innerHTML = d;
+        if (pred.cycleDayMap && pred.cycleDayMap[dateStr]) {
+          innerHTML = `<span>${d}</span><span class="cycle-day">${pred.cycleDayMap[dateStr]}</span>`;
+        }
+        cell.innerHTML = innerHTML;
+
         if (dateStr===todayStr) cell.classList.add('today');
         const entry = allData.find(e=>e.date===dateStr);
         if (entry) {
           cell.classList.add('has-data');
           if (entry.bleeding?.active) cell.classList.add('menstruation');
         }
-        if (!entry?.bleeding?.active && pred) {
+        if (!entry?.bleeding?.active) {
           if (pred.predictedPeriodDays.includes(dateStr)) cell.classList.add('predicted-menstruation');
-          if (pred.ovulationDay===dateStr) cell.classList.add('ovulation');
+          else if (pred.allOvulationDays?.includes(dateStr)) cell.classList.add('ovulation');
           else if (pred.fertileDays.includes(dateStr)) cell.classList.add('fertile');
         }
         cell.addEventListener('click', ()=>openDayModal(dateStr));
@@ -519,7 +595,7 @@
     async function renderPredictionBar() {
       const allData = await getAllData();
       const pred = calculatePredictions(allData);
-      if (!pred) { predictionBar.textContent = '👋 Trage mindestens zwei Perioden ein, um Vorhersagen zu erhalten.'; return; }
+      if (!pred.nextStart) { predictionBar.textContent = '👋 Trage mindestens zwei Perioden ein, um Vorhersagen zu erhalten.'; return; }
       const next = parseDate(pred.nextStart), diff = dayDiff(today, next);
       let msg = `📅 Nächste Periode: ${next.toLocaleDateString('de-DE')}`;
       if (diff===0) msg='🩸 Heute beginnt voraussichtlich deine Periode.';
@@ -587,7 +663,7 @@
     document.getElementById('prev-month').addEventListener('click', ()=>{ currentMonth===0? (currentYear--,currentMonth=11) : currentMonth--; renderCalendarView(); });
     document.getElementById('next-month').addEventListener('click', ()=>{ currentMonth===11? (currentYear++,currentMonth=0) : currentMonth++; renderCalendarView(); });
     document.getElementById('today-btn').addEventListener('click', ()=>{ currentMonth=today.getMonth(); currentYear=today.getFullYear(); renderCalendarView(); });
-    document.getElementById('legend-btn').addEventListener('click', ()=>alert('Farben:\n🔴 Rot = Periode\n🌸 Hellrot = erwartet\n🟢 Grün = fruchtbar\n🥬 Dunkelgrün = Eisprung'));
+    document.getElementById('legend-btn').addEventListener('click', ()=>alert('Farben:\n🔴 Rot = Periode\n🌸 Hellrot = erwartet\n🟢 Grün = fruchtbar\n🥬 Dunkelgrün = Eisprung\n\nKleine Zahl = Zyklustag'));
 
     const onboardingOverlay = document.getElementById('onboarding-overlay');
     if(!localStorage.getItem('periTrack_onboardingDone')) onboardingOverlay.classList.remove('hidden');
@@ -598,16 +674,11 @@
       panels.forEach(p => document.getElementById(p).classList.toggle('active', p===id));
     }
 
-    // *** NUR DIESE FUNKTION WURDE GEÄNDERT ***
     async function renderHistory() {
       const allData = await getAllData();
       const pred = calculatePredictions(allData);
-      let earliest = today;
-      allData.forEach(e => { const d = parseDate(e.date); if (d < earliest) earliest = d; });
-      // Start: frühester Eintrag oder heute, falls keine Einträge
-      let start = new Date(earliest.getFullYear(), earliest.getMonth(), 1);
-      // Ende: 12 Monate in der Zukunft (inklusive)
-      const endDate = new Date(today.getFullYear(), today.getMonth() + 12, 1);
+      let start = new Date(today.getFullYear()-1, today.getMonth(), 1);
+      const endDate = new Date(today.getFullYear()+10, today.getMonth(), 1);
       const months = [];
       while (start <= endDate) {
         months.push({ year: start.getFullYear(), month: start.getMonth() });
@@ -628,11 +699,15 @@
           let cls = '';
           const entry = allData.find(e=>e.date===dateStr);
           if (entry?.bleeding?.active) cls = 'menstruation';
-          else if (pred?.predictedPeriodDays.includes(dateStr)) cls = 'predicted-menstruation';
-          if (pred?.ovulationDay===dateStr) cls = 'ovulation';
-          else if (pred?.fertileDays.includes(dateStr) && !cls) cls = 'fertile';
+          else if (pred.predictedPeriodDays.includes(dateStr)) cls = 'predicted-menstruation';
+          if (pred.allOvulationDays?.includes(dateStr)) cls = 'ovulation';
+          else if (pred.fertileDays.includes(dateStr) && !cls) cls = 'fertile';
           if (dateStr===todayStr) cls += ' today';
-          row += `<td class="${cls}" data-date="${dateStr}">${d}</td>`;
+          let content = d;
+          if (pred.cycleDayMap && pred.cycleDayMap[dateStr]) {
+            content = `<span>${d}</span><span class="cycle-day">${pred.cycleDayMap[dateStr]}</span>`;
+          }
+          row += `<td class="${cls}" data-date="${dateStr}">${content}</td>`;
         }
         while ((firstDay+days-1)%7 < 6) { row += '<td></td>'; days++; }
         row += '</tr>';
@@ -674,7 +749,7 @@
       const allData = await getAllData();
       const pred = calculatePredictions(allData);
       let html = '<h3>📊 Statistik</h3>';
-      if (pred) {
+      if (pred.medianCycle) {
         html += `<p>🔄 Zykluslänge: <strong>${pred.medianCycle} Tage</strong></p>`;
         html += `<p>🩸 Nächste Periode: <strong>${new Date(parseDate(pred.nextStart)).toLocaleDateString('de-DE')}</strong></p>`;
       } else html += '<p>Trage mindestens zwei Perioden ein.</p>';
