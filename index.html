@@ -163,8 +163,29 @@
       border-radius: 10px;
       font-size: 1rem;
     }
-    .checkbox-group { display: flex; flex-wrap: wrap; gap: 8px; }
-    .checkbox-group label { font-weight: normal; display: flex; align-items: center; gap: 4px; }
+    .chip-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .chip {
+      padding: 10px 16px;
+      border: 1px solid #ccc;
+      border-radius: 20px;
+      background: #f9f9f9;
+      font-size: 0.9rem;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      white-space: nowrap;
+    }
+    .chip.selected {
+      background: #e91e63;
+      color: white;
+      border-color: #e91e63;
+    }
     .btn {
       background: #e91e63;
       color: white;
@@ -232,7 +253,7 @@
     </div>
     <div class="form-group">
       <label>Symptome</label>
-      <div class="checkbox-group" id="symptoms-list"></div>
+      <div id="symptoms-list" class="chip-group"></div>
     </div>
     <div class="form-group">
       <label>Stimmung</label>
@@ -450,26 +471,42 @@
       }
     }
 
-    // Symptom-Checkboxen
+    // Symptom-Chips
     const symptomOptions = [
       'Krämpfe','Kopfschmerzen','Brustspannen','Blähungen','Akne',
       'Müdigkeit','Rückenschmerzen','Übelkeit','Durchfall','Heißhunger','Schlaflosigkeit'
     ];
     const symptomsContainer = document.getElementById('symptoms-list');
-    symptomOptions.forEach(s => {
-      const lbl = document.createElement('label');
-      lbl.innerHTML = `<input type="checkbox" value="${s}"> ${s}`;
-      symptomsContainer.appendChild(lbl);
-    });
-
-    function getSymptomCheckboxes() {
-      return Array.from(symptomsContainer.querySelectorAll('input[type=checkbox]:checked')).map(cb => cb.value);
-    }
-    function setSymptomCheckboxes(values) {
-      symptomsContainer.querySelectorAll('input[type=checkbox]').forEach(cb => {
-        cb.checked = values.includes(cb.value);
+    
+    function buildSymptomChips() {
+      symptomsContainer.innerHTML = '';
+      symptomOptions.forEach(symptom => {
+        const chip = document.createElement('span');
+        chip.className = 'chip';
+        chip.textContent = symptom;
+        chip.addEventListener('click', () => {
+          chip.classList.toggle('selected');
+        });
+        symptomsContainer.appendChild(chip);
       });
     }
+
+    function getSelectedSymptoms() {
+      return Array.from(symptomsContainer.querySelectorAll('.chip.selected')).map(chip => chip.textContent);
+    }
+
+    function setSelectedSymptoms(selectedArray) {
+      Array.from(symptomsContainer.children).forEach(chip => {
+        if (selectedArray.includes(chip.textContent)) {
+          chip.classList.add('selected');
+        } else {
+          chip.classList.remove('selected');
+        }
+      });
+    }
+
+    // Initial Chips bauen
+    buildSymptomChips();
 
     // Kalender rendern
     async function renderCalendar() {
@@ -631,7 +668,7 @@
         document.getElementById('bleeding-active').checked = data?.bleeding?.active || false;
         document.getElementById('bleeding-intensity').value = data?.bleeding?.intensity || 'medium';
         document.getElementById('bleeding-intensity').classList.toggle('hidden', !data?.bleeding?.active);
-        setSymptomCheckboxes(data?.symptoms || []);
+        setSelectedSymptoms(data?.symptoms || []);
         document.getElementById('mood').value = data?.mood || '';
         document.getElementById('cervical-mucus').value = data?.cervicalMucus || '';
         document.getElementById('temperature').value = data?.temperature || '';
@@ -660,7 +697,7 @@
           active: document.getElementById('bleeding-active').checked,
           intensity: document.getElementById('bleeding-intensity').value
         },
-        symptoms: getSymptomCheckboxes(),
+        symptoms: getSelectedSymptoms(),
         mood: document.getElementById('mood').value || undefined,
         cervicalMucus: getAdvancedMode() ? (document.getElementById('cervical-mucus').value || undefined) : undefined,
         temperature: getAdvancedMode() ? (document.getElementById('temperature').value ? parseFloat(document.getElementById('temperature').value) : undefined) : undefined,
