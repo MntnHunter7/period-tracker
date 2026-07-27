@@ -141,19 +141,16 @@
     }
     .bottom-nav button .emoji { font-size: 1.4rem; }
 
-    /* Panel Container */
     .panel { display: none; flex: 1; overflow-y: auto; }
     .panel.active { display: flex; flex-direction: column; }
 
     #calendar-panel { overflow-y: visible; }
 
-    /* History Panel */
     #history-panel .month-calendar { margin: 16px; }
     #history-panel .month-title { font-weight: 600; margin-bottom: 4px; color: #e91e63; }
     #history-panel table { width: 100%; border-collapse: collapse; table-layout: fixed; }
     #history-panel td { height: 36px; font-size: 0.85rem; cursor: pointer; }
 
-    /* Modal */
     .modal-overlay {
       position: fixed;
       top: 0; left: 0; width: 100%; height: 100%;
@@ -217,7 +214,6 @@
     .toggle-label input[type="checkbox"] { width: 40px; height: 24px; }
     .onboarding-step { margin-bottom: 20px; }
 
-    /* History readonly detail */
     .detail-row { display: flex; margin-bottom: 4px; }
     .detail-label { font-weight: 500; width: 110px; }
   </style>
@@ -230,7 +226,6 @@
   </header>
   <div id="prediction-bar" class="prediction-bar"></div>
 
-  <!-- Panels -->
   <div id="calendar-panel" class="panel active">
     <div class="calendar-nav">
       <button id="prev-month">←</button>
@@ -251,7 +246,7 @@
   </div>
 
   <div id="history-panel" class="panel">
-    <!-- wird dynamisch befüllt -->
+    <div style="padding: 20px; text-align: center;">Lade Verlauf…</div>
   </div>
 
   <div id="stats-panel" class="panel">
@@ -271,7 +266,6 @@
   </div>
 </div>
 
-<!-- Tageseintrag-Modal (nur für Bearbeitung, nicht für Verlauf) -->
 <div id="modal" class="modal-overlay hidden">
   <div class="modal">
     <h3 id="modal-date"></h3>
@@ -360,7 +354,6 @@
   </div>
 </div>
 
-<!-- Onboarding Dialog -->
 <div id="onboarding-overlay" class="modal-overlay hidden">
   <div class="modal">
     <h3>Willkommen bei PeriTrack 🌸</h3>
@@ -373,7 +366,6 @@
   </div>
 </div>
 
-<!-- Readonly Info Modal für Verlauf -->
 <div id="info-modal" class="modal-overlay hidden">
   <div class="modal" id="info-modal-content"></div>
 </div>
@@ -430,7 +422,6 @@
     const today = new Date(), todayStr = formatDate(today);
     let currentMonth = today.getMonth(), currentYear = today.getFullYear();
 
-    // UI Referenzen
     const monthYearEl = document.getElementById('month-year');
     const calendarBody = document.getElementById('calendar-body');
     const predictionBar = document.getElementById('prediction-bar');
@@ -445,7 +436,6 @@
     const setAdvancedMode = (v) => localStorage.setItem('periTrack_advancedMode', v);
     function applyAdvancedMode() { advancedFields.classList.toggle('hidden', !getAdvancedMode()); }
 
-    // Symptom-Chips
     const symptomOptions = ['Krämpfe','Kopfschmerzen','Brustspannen','Blähungen','Akne','Müdigkeit','Rückenschmerzen','Übelkeit','Durchfall','Heißhunger','Schlaflosigkeit'];
     const symptomsContainer = document.getElementById('symptoms-list');
     symptomOptions.forEach(s => {
@@ -458,7 +448,6 @@
       [...symptomsContainer.children].forEach(c=>c.classList.toggle('selected', arr.includes(c.textContent)));
     }
 
-    // Predictions
     function calculatePredictions(allData) {
       const bleedingDays = allData.filter(e=>e.bleeding?.active).sort((a,b)=>a.date.localeCompare(b.date));
       if (!bleedingDays.length) return null;
@@ -600,27 +589,23 @@
     document.getElementById('today-btn').addEventListener('click', ()=>{ currentMonth=today.getMonth(); currentYear=today.getFullYear(); renderCalendarView(); });
     document.getElementById('legend-btn').addEventListener('click', ()=>alert('Farben:\n🔴 Rot = Periode\n🌸 Hellrot = erwartet\n🟢 Grün = fruchtbar\n🥬 Dunkelgrün = Eisprung'));
 
-    // Onboarding
     const onboardingOverlay = document.getElementById('onboarding-overlay');
     if(!localStorage.getItem('periTrack_onboardingDone')) onboardingOverlay.classList.remove('hidden');
     document.getElementById('close-onboarding').addEventListener('click', ()=>{ onboardingOverlay.classList.add('hidden'); localStorage.setItem('periTrack_onboardingDone','true'); });
 
-    // Panel Management
     const panels = ['calendar-panel','history-panel','stats-panel','settings-panel'];
     function showPanel(id) {
       panels.forEach(p => document.getElementById(p).classList.toggle('active', p===id));
     }
 
-    // Verlauf rendern
     async function renderHistory() {
       const allData = await getAllData();
       const pred = calculatePredictions(allData);
-      const months = [];
-      // Zeige die letzten 12 Monate (oder ab frühestem Eintrag)
       let earliest = today;
       allData.forEach(e => { const d = parseDate(e.date); if (d < earliest) earliest = d; });
       let start = new Date(earliest.getFullYear(), earliest.getMonth(), 1);
       const end = new Date(today.getFullYear(), today.getMonth()+1, 0);
+      const months = [];
       while (start <= end) {
         months.push({ year: start.getFullYear(), month: start.getMonth() });
         start.setMonth(start.getMonth()+1);
@@ -632,7 +617,7 @@
         const monthName = new Date(year, month).toLocaleDateString('de-DE', {month:'long', year:'numeric'});
         html += `<div class="month-calendar"><div class="month-title">${monthName}</div><table><thead><tr><th>Mo</th><th>Di</th><th>Mi</th><th>Do</th><th>Fr</th><th>Sa</th><th>So</th></tr></thead><tbody>`;
         const firstDay = getFirstDayOfWeek(year, month);
-        const days = getDaysInMonth(year, month);
+        let days = getDaysInMonth(year, month);
         let row = '<tr>';
         for (let i=0; i<firstDay; i++) row += '<td></td>';
         for (let d=1; d<=days; d++) {
@@ -652,7 +637,6 @@
         html += row + '</tbody></table></div>';
       });
       document.getElementById('history-panel').innerHTML = html;
-      // Event-Listener für Zellen im Verlauf (nur lesend)
       document.querySelectorAll('#history-panel td[data-date]').forEach(td => {
         td.addEventListener('click', async (e) => {
           const dateStr = e.currentTarget.dataset.date;
