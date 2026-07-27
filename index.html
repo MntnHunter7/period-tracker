@@ -29,6 +29,7 @@
       display: flex;
       flex-direction: column;
       box-shadow: 0 0 20px rgba(0,0,0,0.05);
+      position: relative;
     }
     header {
       padding: 16px 16px 8px;
@@ -50,11 +51,12 @@
     .calendar-nav button {
       background: none;
       border: 1px solid #ddd;
-      padding: 8px 12px;
+      padding: 10px 14px;
       border-radius: 20px;
       font-size: 1rem;
       cursor: pointer;
       white-space: nowrap;
+      min-height: 44px;
     }
     .calendar-nav button.today-btn { background: #e91e63; color: white; border-color: #e91e63; font-weight: 500; }
     .month-year { font-weight: 600; font-size: 1.1rem; flex: 1; text-align: center; }
@@ -65,9 +67,9 @@
     }
     th {
       text-align: center;
-      padding: 8px 0;
+      padding: 10px 0;
       font-weight: 500;
-      font-size: 0.8rem;
+      font-size: 0.85rem;
       color: #888;
     }
     td {
@@ -78,6 +80,7 @@
       position: relative;
       border-radius: 50%;
       transition: background 0.2s;
+      font-size: 0.95rem;
     }
     td.today { font-weight: bold; border: 2px solid #e91e63; }
     td.other-month { color: #ccc; }
@@ -99,26 +102,26 @@
       justify-content: center;
       flex-wrap: wrap;
       gap: 12px;
-      padding: 6px 10px;
-      font-size: 0.75rem;
+      padding: 8px 10px;
+      font-size: 0.8rem;
       color: #555;
     }
     .legend span { display: inline-flex; align-items: center; gap: 4px; }
-    .legend .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+    .legend .dot { width: 14px; height: 14px; border-radius: 50%; display: inline-block; }
     .dot.menstruation { background: #ffcdd2; }
     .dot.predicted { background: #ffebee; }
     .dot.fertile { background: #e8f5e9; }
     .dot.ovulation { background: #a5d6a7; }
     .prediction-bar {
       text-align: center;
-      padding: 8px;
+      padding: 10px;
       background: #fce4ec;
-      font-size: 0.9rem;
+      font-size: 0.95rem;
     }
     .bottom-nav {
       display: flex;
       justify-content: space-around;
-      padding: 12px 0;
+      padding: 8px 0 env(safe-area-inset-bottom, 8px);
       background: white;
       border-top: 1px solid #eee;
       margin-top: auto;
@@ -126,14 +129,31 @@
     .bottom-nav button {
       background: none;
       border: none;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       color: #e91e63;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 2px;
+      gap: 4px;
       cursor: pointer;
+      min-height: 44px;
+      min-width: 60px;
     }
+    .bottom-nav button .emoji { font-size: 1.4rem; }
+
+    /* Panel Container */
+    .panel { display: none; flex: 1; overflow-y: auto; }
+    .panel.active { display: flex; flex-direction: column; }
+
+    #calendar-panel { overflow-y: visible; }
+
+    /* History Panel */
+    #history-panel .month-calendar { margin: 16px; }
+    #history-panel .month-title { font-weight: 600; margin-bottom: 4px; color: #e91e63; }
+    #history-panel table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    #history-panel td { height: 36px; font-size: 0.85rem; cursor: pointer; }
+
+    /* Modal */
     .modal-overlay {
       position: fixed;
       top: 0; left: 0; width: 100%; height: 100%;
@@ -158,16 +178,12 @@
     .form-group label { display: block; font-size: 0.9rem; margin-bottom: 4px; font-weight: 500; }
     .form-group select, .form-group input, .form-group textarea {
       width: 100%;
-      padding: 10px;
+      padding: 12px;
       border: 1px solid #ddd;
       border-radius: 10px;
       font-size: 1rem;
     }
-    .chip-group {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
+    .chip-group { display: flex; flex-wrap: wrap; gap: 8px; }
     .chip {
       padding: 10px 16px;
       border: 1px solid #ccc;
@@ -177,96 +193,51 @@
       cursor: pointer;
       user-select: none;
       transition: all 0.2s;
+      min-height: 44px;
       display: inline-flex;
       align-items: center;
-      white-space: nowrap;
     }
-    .chip.selected {
-      background: #e91e63;
-      color: white;
-      border-color: #e91e63;
-    }
+    .chip.selected { background: #e91e63; color: white; border-color: #e91e63; }
     .btn {
       background: #e91e63;
       color: white;
       border: none;
-      padding: 12px;
+      padding: 14px;
       border-radius: 20px;
       width: 100%;
       font-size: 1rem;
       cursor: pointer;
       margin-top: 8px;
+      min-height: 44px;
     }
     .btn.secondary { background: #eee; color: #333; }
-    .stats { padding: 20px; }
-    .stats p { margin: 8px 0; }
     .hidden { display: none !important; }
     .advanced-fields { border-top: 1px solid #ddd; padding-top: 12px; margin-top: 8px; }
     .toggle-label { display: flex; justify-content: space-between; align-items: center; }
     .toggle-label input[type="checkbox"] { width: 40px; height: 24px; }
     .onboarding-step { margin-bottom: 20px; }
 
-    /* Verlauf Mini-Kalender */
-    .mini-calendar-container {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      padding: 12px;
-      justify-content: center;
-    }
-    .mini-month {
-      background: #fff;
-      border-radius: 12px;
-      padding: 8px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
-      width: 140px;
-      font-size: 0.75rem;
-    }
-    .mini-month h4 {
-      text-align: center;
-      margin-bottom: 4px;
-      font-size: 0.85rem;
-      color: #e91e63;
-    }
-    .mini-grid {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      text-align: center;
-      gap: 1px;
-    }
-    .mini-day {
-      aspect-ratio: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 50%;
-    }
-    .mini-day.menstruation { background: #ffcdd2; }
-    .mini-day.predicted-menstruation { background: #ffebee; }
-    .mini-day.fertile { background: #e8f5e9; }
-    .mini-day.ovulation { background: #a5d6a7; }
-    .mini-day.today { border: 1px solid #e91e63; font-weight: bold; }
-    .mini-weekday {
-      font-weight: bold;
-      color: #888;
-    }
+    /* History readonly detail */
+    .detail-row { display: flex; margin-bottom: 4px; }
+    .detail-label { font-weight: 500; width: 110px; }
   </style>
 </head>
 <body>
 <div id="app">
   <header>
     <h1>🌸 PeriTrack</h1>
-    <button id="legend-btn" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:rgba(255,255,255,0.2); border:none; color:white; border-radius:50%; width:30px; height:30px; font-size:1.2rem; cursor:pointer;" title="Legende">?</button>
+    <button id="legend-btn" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:rgba(255,255,255,0.2); border:none; color:white; border-radius:50%; width:32px; height:32px; font-size:1.2rem; cursor:pointer;" title="Legende">?</button>
   </header>
   <div id="prediction-bar" class="prediction-bar"></div>
-  <div class="calendar-nav" id="calendar-nav">
-    <button id="prev-month">←</button>
-    <span class="month-year" id="month-year"></span>
-    <button id="next-month">→</button>
-    <button id="today-btn" class="today-btn">Heute</button>
-  </div>
-  <div id="main-content">
-    <!-- Kalenderansicht (Standard) -->
+
+  <!-- Panels -->
+  <div id="calendar-panel" class="panel active">
+    <div class="calendar-nav">
+      <button id="prev-month">←</button>
+      <span class="month-year" id="month-year"></span>
+      <button id="next-month">→</button>
+      <button id="today-btn" class="today-btn">Heute</button>
+    </div>
     <table class="calendar" id="calendar-table">
       <thead><tr><th>Mo</th><th>Di</th><th>Mi</th><th>Do</th><th>Fr</th><th>Sa</th><th>So</th></tr></thead>
       <tbody id="calendar-body"></tbody>
@@ -278,16 +249,29 @@
       <span><span class="dot ovulation"></span> Eisprung</span>
     </div>
   </div>
+
+  <div id="history-panel" class="panel">
+    <!-- wird dynamisch befüllt -->
+  </div>
+
+  <div id="stats-panel" class="panel">
+    <div class="stats" id="stats-content"></div>
+  </div>
+
+  <div id="settings-panel" class="panel">
+    <div class="stats" id="settings-content"></div>
+  </div>
+
   <div class="bottom-nav">
-    <button id="tab-calendar">📅 Kalender</button>
-    <button id="tab-today">✏️ Heute</button>
-    <button id="tab-history">🗂️ Verlauf</button>
-    <button id="tab-stats">📊 Statistik</button>
-    <button id="tab-settings">⚙️ Einstellungen</button>
+    <button id="tab-calendar"><span class="emoji">📅</span> Kalender</button>
+    <button id="tab-today"><span class="emoji">✏️</span> Heute</button>
+    <button id="tab-history"><span class="emoji">🗂️</span> Verlauf</button>
+    <button id="tab-stats"><span class="emoji">📊</span> Statistik</button>
+    <button id="tab-settings"><span class="emoji">⚙️</span> Einstellungen</button>
   </div>
 </div>
 
-<!-- Tageseintrag-Modal -->
+<!-- Tageseintrag-Modal (nur für Bearbeitung, nicht für Verlauf) -->
 <div id="modal" class="modal-overlay hidden">
   <div class="modal">
     <h3 id="modal-date"></h3>
@@ -317,8 +301,6 @@
         <option value="emotional">Emotional</option>
       </select>
     </div>
-
-    <!-- Erweiterte Felder (optional) -->
     <div id="advanced-fields" class="advanced-fields hidden">
       <div class="form-group">
         <label>Zervixschleim</label>
@@ -343,7 +325,6 @@
         </select>
       </div>
     </div>
-
     <div class="form-group">
       <label>Geschlechtsverkehr</label>
       <select id="sex">
@@ -383,595 +364,384 @@
 <div id="onboarding-overlay" class="modal-overlay hidden">
   <div class="modal">
     <h3>Willkommen bei PeriTrack 🌸</h3>
-    <div class="onboarding-step">
-      <p><strong>1. Kalender</strong><br>Tippe auf einen Tag, um deine Periode, Symptome oder Stimmung einzutragen. Heute ist <strong>fett umrandet</strong>.</p>
-    </div>
-    <div class="onboarding-step">
-      <p><strong>2. Farben</strong><br>
-      🔴 <span style="background:#ffcdd2;padding:0 4px;">Rot</span> = eingetragene Periode<br>
-      🌸 <span style="background:#ffebee;padding:0 4px;">Hellrot</span> = vorhergesagte Periode<br>
-      🟢 <span style="background:#e8f5e9;padding:0 4px;">Grün</span> = fruchtbare Tage<br>
-      🥬 <span style="background:#a5d6a7;padding:0 4px;">Dunkelgrün</span> = errechneter Eisprung</p>
-    </div>
-    <div class="onboarding-step">
-      <p><strong>3. Vorhersage</strong><br>Sobald du <strong>zwei Perioden</strong> eingetragen hast, berechnet die App Zykluslänge und fruchtbare Tage.</p>
-    </div>
-    <div class="onboarding-step">
-      <p><strong>4. Symptome & Notizen</strong><br>Einträge wie Krämpfe, Stimmung oder Zervixschleim helfen dir, deinen Körper besser zu verstehen – sie fließen aber nicht in die Berechnung der Vorhersage ein.</p>
-    </div>
-    <div class="onboarding-step">
-      <p><strong>5. Optionale Felder</strong><br>In den <em>Einstellungen</em> kannst du erweiterte Einträge (Temperatur, Schleim, Ovulationstest) aktivieren – nur wenn du sie nutzt.</p>
-    </div>
+    <div class="onboarding-step"><p><strong>1. Kalender</strong><br>Tippe auf einen Tag, um deine Periode, Symptome oder Stimmung einzutragen. Heute ist <strong>fett umrandet</strong>.</p></div>
+    <div class="onboarding-step"><p><strong>2. Farben</strong><br>🔴 Rot = Periode · 🌸 Hellrot = erwartet · 🟢 Grün = fruchtbar · 🥬 Dunkelgrün = Eisprung</p></div>
+    <div class="onboarding-step"><p><strong>3. Vorhersage</strong><br>Sobald du <strong>zwei Perioden</strong> eingetragen hast, berechnet die App Zykluslänge und fruchtbare Tage.</p></div>
+    <div class="onboarding-step"><p><strong>4. Symptome & Notizen</strong><br>Einträge wie Krämpfe, Stimmung oder Zervixschleim helfen dir, deinen Körper besser zu verstehen – sie fließen aber nicht in die Berechnung der Vorhersage ein.</p></div>
+    <div class="onboarding-step"><p><strong>5. Optionale Felder</strong><br>In den <em>Einstellungen</em> kannst du erweiterte Einträge (Temperatur, Schleim, Ovulationstest) aktivieren – nur wenn du sie nutzt.</p></div>
     <button class="btn" id="close-onboarding">Los geht's!</button>
   </div>
 </div>
 
+<!-- Readonly Info Modal für Verlauf -->
+<div id="info-modal" class="modal-overlay hidden">
+  <div class="modal" id="info-modal-content"></div>
+</div>
+
 <script>
   (function() {
-    // IndexedDB Setup
-    const DB_NAME = 'periTrackDB';
-    const STORE_NAME = 'days';
+    const DB_NAME = 'periTrackDB', STORE_NAME = 'days';
     let db;
-
     function openDB() {
       return new Promise((resolve, reject) => {
         const request = indexedDB.open(DB_NAME, 1);
         request.onupgradeneeded = (e) => {
           db = e.target.result;
-          if (!db.objectStoreNames.contains(STORE_NAME)) {
-            db.createObjectStore(STORE_NAME, { keyPath: 'date' });
-          }
+          if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME, { keyPath: 'date' });
         };
-        request.onsuccess = (e) => {
-          db = e.target.result;
-          resolve(db);
-        };
+        request.onsuccess = (e) => { db = e.target.result; resolve(db); };
         request.onerror = (e) => reject(e.target.error);
       });
     }
-
     function getDayData(dateStr) {
-      return new Promise((resolve) => {
+      return new Promise(resolve => {
         const tx = db.transaction(STORE_NAME, 'readonly');
-        const store = tx.objectStore(STORE_NAME);
-        const req = store.get(dateStr);
-        req.onsuccess = () => resolve(req.result || null);
+        tx.objectStore(STORE_NAME).get(dateStr).onsuccess = (e) => resolve(e.target.result || null);
       });
     }
-
     function saveDayData(dateStr, data) {
       return new Promise((resolve, reject) => {
         const tx = db.transaction(STORE_NAME, 'readwrite');
-        const store = tx.objectStore(STORE_NAME);
-        store.put({ date: dateStr, ...data });
+        tx.objectStore(STORE_NAME).put({ date: dateStr, ...data });
         tx.oncomplete = resolve;
         tx.onerror = reject;
       });
     }
-
     function deleteDayData(dateStr) {
       return new Promise((resolve, reject) => {
         const tx = db.transaction(STORE_NAME, 'readwrite');
-        const store = tx.objectStore(STORE_NAME);
-        store.delete(dateStr);
+        tx.objectStore(STORE_NAME).delete(dateStr);
         tx.oncomplete = resolve;
         tx.onerror = reject;
       });
     }
-
     function getAllData() {
-      return new Promise((resolve) => {
+      return new Promise(resolve => {
         const tx = db.transaction(STORE_NAME, 'readonly');
-        const store = tx.objectStore(STORE_NAME);
-        const req = store.getAll();
-        req.onsuccess = () => resolve(req.result || []);
+        tx.objectStore(STORE_NAME).getAll().onsuccess = (e) => resolve(e.target.result || []);
       });
     }
 
-    // Hilfsfunktionen
-    function formatDate(date) {
-      const y = date.getFullYear();
-      const m = String(date.getMonth() + 1).padStart(2,'0');
-      const d = String(date.getDate()).padStart(2,'0');
-      return `${y}-${m}-${d}`;
-    }
+    function formatDate(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+    function parseDate(s) { const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); }
+    function getDaysInMonth(y,m) { return new Date(y, m+1, 0).getDate(); }
+    function getFirstDayOfWeek(y,m) { let d = new Date(y,m,1).getDay(); return d===0 ? 6 : d-1; }
 
-    function parseDate(str) {
-      const [y,m,d] = str.split('-').map(Number);
-      return new Date(y, m-1, d);
-    }
+    const today = new Date(), todayStr = formatDate(today);
+    let currentMonth = today.getMonth(), currentYear = today.getFullYear();
 
-    function getDaysInMonth(year, month) {
-      return new Date(year, month+1, 0).getDate();
-    }
-
-    function getFirstDayOfWeek(year, month) {
-      let day = new Date(year, month, 1).getDay();
-      return day === 0 ? 6 : day-1; // Montag=0
-    }
-
-    // Kalender State
-    let currentMonth, currentYear;
-    const today = new Date();
-    const todayStr = formatDate(today);
-
-    function setCurrentMonth(year, month) {
-      currentYear = year;
-      currentMonth = month;
-      renderCalendarView();
-      renderPredictionBar();
-    }
-
-    // UI-Elemente
+    // UI Referenzen
     const monthYearEl = document.getElementById('month-year');
     const calendarBody = document.getElementById('calendar-body');
-    const calendarTable = document.getElementById('calendar-table');
-    const colorLegend = document.getElementById('color-legend');
-    const calendarNav = document.getElementById('calendar-nav');
-    const mainContent = document.getElementById('main-content');
+    const predictionBar = document.getElementById('prediction-bar');
     const modal = document.getElementById('modal');
     const modalDateEl = document.getElementById('modal-date');
-    const predictionBar = document.getElementById('prediction-bar');
     const advancedFields = document.getElementById('advanced-fields');
+    const infoModal = document.getElementById('info-modal');
+    const infoModalContent = document.getElementById('info-modal-content');
     let selectedDateStr = null;
 
-    // Einstellungen
     const getAdvancedMode = () => localStorage.getItem('periTrack_advancedMode') === 'true';
-    const setAdvancedMode = (val) => localStorage.setItem('periTrack_advancedMode', val);
-
-    function applyAdvancedMode() {
-      if (getAdvancedMode()) {
-        advancedFields.classList.remove('hidden');
-      } else {
-        advancedFields.classList.add('hidden');
-      }
-    }
+    const setAdvancedMode = (v) => localStorage.setItem('periTrack_advancedMode', v);
+    function applyAdvancedMode() { advancedFields.classList.toggle('hidden', !getAdvancedMode()); }
 
     // Symptom-Chips
-    const symptomOptions = [
-      'Krämpfe','Kopfschmerzen','Brustspannen','Blähungen','Akne',
-      'Müdigkeit','Rückenschmerzen','Übelkeit','Durchfall','Heißhunger','Schlaflosigkeit'
-    ];
+    const symptomOptions = ['Krämpfe','Kopfschmerzen','Brustspannen','Blähungen','Akne','Müdigkeit','Rückenschmerzen','Übelkeit','Durchfall','Heißhunger','Schlaflosigkeit'];
     const symptomsContainer = document.getElementById('symptoms-list');
-    
-    function buildSymptomChips() {
-      symptomsContainer.innerHTML = '';
-      symptomOptions.forEach(symptom => {
-        const chip = document.createElement('span');
-        chip.className = 'chip';
-        chip.textContent = symptom;
-        chip.addEventListener('click', () => {
-          chip.classList.toggle('selected');
-        });
-        symptomsContainer.appendChild(chip);
-      });
+    symptomOptions.forEach(s => {
+      const chip = document.createElement('span'); chip.className='chip'; chip.textContent=s;
+      chip.addEventListener('click',()=>chip.classList.toggle('selected'));
+      symptomsContainer.appendChild(chip);
+    });
+    function getSelectedSymptoms() { return [...symptomsContainer.querySelectorAll('.chip.selected')].map(c=>c.textContent); }
+    function setSelectedSymptoms(arr) {
+      [...symptomsContainer.children].forEach(c=>c.classList.toggle('selected', arr.includes(c.textContent)));
     }
 
-    function getSelectedSymptoms() {
-      return Array.from(symptomsContainer.querySelectorAll('.chip.selected')).map(chip => chip.textContent);
-    }
-
-    function setSelectedSymptoms(selectedArray) {
-      Array.from(symptomsContainer.children).forEach(chip => {
-        if (selectedArray.includes(chip.textContent)) {
-          chip.classList.add('selected');
-        } else {
-          chip.classList.remove('selected');
-        }
-      });
-    }
-
-    buildSymptomChips();
-
-    // Berechnungen
+    // Predictions
     function calculatePredictions(allData) {
+      const bleedingDays = allData.filter(e=>e.bleeding?.active).sort((a,b)=>a.date.localeCompare(b.date));
+      if (!bleedingDays.length) return null;
       const startDates = [];
-      const sorted = allData.filter(e => e.bleeding && e.bleeding.active).sort((a,b) => a.date.localeCompare(b.date));
-      if (sorted.length === 0) return null;
-      let prevDate = null;
-      for (let entry of sorted) {
-        const curr = entry.date;
-        if (!prevDate || new Date(curr) - new Date(prevDate) > 86400000*1.5) {
-          startDates.push(curr);
-        }
-        prevDate = curr;
+      let prev = null;
+      for (let e of bleedingDays) {
+        if (!prev || new Date(e.date)-new Date(prev) > 86400000*1.5) startDates.push(e.date);
+        prev = e.date;
       }
       if (startDates.length < 2) return null;
       const cycleLengths = [];
-      for (let i=1; i<startDates.length; i++) {
-        const diff = (parseDate(startDates[i]) - parseDate(startDates[i-1])) / 86400000;
-        cycleLengths.push(diff);
+      for (let i=1; i<startDates.length; i++) cycleLengths.push((parseDate(startDates[i])-parseDate(startDates[i-1]))/86400000);
+      const last6 = cycleLengths.slice(-6).sort((a,b)=>a-b);
+      const medianCycle = last6.length%2 ? last6[Math.floor(last6.length/2)] : Math.round((last6[last6.length/2-1]+last6[last6.length/2])/2);
+      const nextStart = new Date(parseDate(startDates[startDates.length-1])); nextStart.setDate(nextStart.getDate()+medianCycle);
+      const periodLengths = startDates.map(s => {
+        let cnt=0, d=new Date(parseDate(s));
+        while (allData.some(e=>e.date===formatDate(d) && e.bleeding?.active)) { cnt++; d.setDate(d.getDate()+1); }
+        return cnt;
+      }).sort((a,b)=>a-b);
+      const medianPeriod = periodLengths[Math.floor(periodLengths.length/2)]||5;
+      const ovulation = new Date(nextStart); ovulation.setDate(ovulation.getDate()-14);
+      const fertileStart = new Date(ovulation); fertileStart.setDate(fertileStart.getDate()-5);
+      const fertileEnd = new Date(ovulation); fertileEnd.setDate(fertileEnd.getDate()+1);
+      const predictedPeriodDays = [], fertileDays = [];
+      for (let i=0; i<medianPeriod; i++) { const d=new Date(nextStart); d.setDate(d.getDate()+i); predictedPeriodDays.push(formatDate(d)); }
+      for (let d=new Date(fertileStart); d<=fertileEnd; d.setDate(d.getDate()+1)) {
+        if (formatDate(d)!==formatDate(ovulation)) fertileDays.push(formatDate(d));
       }
-      const last6 = cycleLengths.slice(-6);
-      last6.sort((a,b)=>a-b);
-      let medianCycle;
-      if (last6.length % 2 === 1) {
-        medianCycle = last6[Math.floor(last6.length/2)];
-      } else {
-        const mid = last6.length/2;
-        medianCycle = Math.round((last6[mid-1] + last6[mid]) / 2);
-      }
-      const nextStart = new Date(parseDate(startDates[startDates.length-1]));
-      nextStart.setDate(nextStart.getDate() + medianCycle);
-      const periodLengths = [];
-      for (let i=0; i<startDates.length; i++) {
-        const start = parseDate(startDates[i]);
-        let count = 0;
-        let check = new Date(start);
-        while (allData.some(e => e.date === formatDate(check) && e.bleeding && e.bleeding.active)) {
-          count++;
-          check.setDate(check.getDate()+1);
-        }
-        periodLengths.push(count);
-      }
-      periodLengths.sort((a,b)=>a-b);
-      let medianPeriodLength = periodLengths[Math.floor(periodLengths.length/2)] || 5;
-      const ovulationDate = new Date(nextStart);
-      ovulationDate.setDate(ovulationDate.getDate() - 14);
-      const fertileStart = new Date(ovulationDate);
-      fertileStart.setDate(fertileStart.getDate() - 5);
-      const fertileEnd = new Date(ovulationDate);
-      fertileEnd.setDate(fertileEnd.getDate() + 1);
-      const predictedPeriodDays = [];
-      for (let i=0; i<medianPeriodLength; i++) {
-        const day = new Date(nextStart);
-        day.setDate(day.getDate() + i);
-        predictedPeriodDays.push(formatDate(day));
-      }
-      const fertileDays = [];
-      for (let d = new Date(fertileStart); d <= fertileEnd; d.setDate(d.getDate()+1)) {
-        if (formatDate(d) !== formatDate(ovulationDate)) {
-          fertileDays.push(formatDate(d));
-        }
-      }
-      return {
-        nextStart: formatDate(nextStart),
-        ovulationDay: formatDate(ovulationDate),
-        fertileDays,
-        predictedPeriodDays,
-        medianCycle
-      };
+      return { nextStart:formatDate(nextStart), ovulationDay:formatDate(ovulation), fertileDays, predictedPeriodDays, medianCycle };
     }
 
-    function dayDiff(date1, date2) {
-      const d1 = new Date(date1.getFullYear(), date1.getMonth(), date1.getDate());
-      const d2 = new Date(date2.getFullYear(), date2.getMonth(), date2.getDate());
-      return Math.round((d2 - d1) / 86400000);
+    function dayDiff(d1,d2) {
+      return Math.round((new Date(d2.getFullYear(),d2.getMonth(),d2.getDate())-new Date(d1.getFullYear(),d1.getMonth(),d1.getDate()))/86400000);
     }
 
-    function renderPredictionBar() {
-      getAllData().then(allData => {
-        const pred = calculatePredictions(allData);
-        if (!pred) {
-          predictionBar.textContent = '👋 Trage mindestens zwei Perioden ein, um Vorhersagen zu erhalten.';
-          return;
-        }
-        const next = parseDate(pred.nextStart);
-        const diff = dayDiff(today, next);
-        let msg = `📅 Nächste Periode: ${next.toLocaleDateString('de-DE')}`;
-        if (diff === 0) msg = '🩸 Heute beginnt voraussichtlich deine Periode.';
-        else if (diff === 1) msg = '🩸 Morgen beginnt voraussichtlich deine Periode.';
-        else if (diff > 0) msg += ` (in ${diff} Tagen)`;
-        else msg += ` (vor ${Math.abs(diff)} Tagen)`;
-        if (pred.ovulationDay && parseDate(pred.ovulationDay) > today) {
-          const ovDiff = dayDiff(today, parseDate(pred.ovulationDay));
-          if (ovDiff <= 7 && ovDiff >= 0) msg += ` · Eisprung in ${ovDiff} Tagen`;
-        }
-        predictionBar.textContent = msg;
-      });
-    }
-
-    // Kalenderansicht
     async function renderCalendarView() {
-      monthYearEl.textContent = new Date(currentYear, currentMonth).toLocaleDateString('de-DE', { month:'long', year:'numeric' });
+      monthYearEl.textContent = new Date(currentYear, currentMonth).toLocaleDateString('de-DE',{month:'long',year:'numeric'});
       const daysInMonth = getDaysInMonth(currentYear, currentMonth);
       const firstDay = getFirstDayOfWeek(currentYear, currentMonth);
       calendarBody.innerHTML = '';
       let row = document.createElement('tr');
-      for (let i=0; i<firstDay; i++) {
-        const cell = document.createElement('td');
-        cell.classList.add('other-month');
-        row.appendChild(cell);
-      }
+      for (let i=0; i<firstDay; i++) { const td=document.createElement('td'); td.classList.add('other-month'); row.appendChild(td); }
       const allData = await getAllData();
-      const predictions = calculatePredictions(allData);
-
+      const pred = calculatePredictions(allData);
       for (let d=1; d<=daysInMonth; d++) {
-        if ((firstDay + d - 1) % 7 === 0 && row.children.length > 0) {
-          calendarBody.appendChild(row);
-          row = document.createElement('tr');
-        }
-        const date = new Date(currentYear, currentMonth, d);
-        const dateStr = formatDate(date);
-        const cell = document.createElement('td');
-        cell.textContent = d;
-        cell.dataset.date = dateStr;
-
-        if (dateStr === todayStr) cell.classList.add('today');
-
-        const dayData = allData.find(entry => entry.date === dateStr);
-        if (dayData) {
+        if ((firstDay+d-1)%7===0 && row.children.length>0) { calendarBody.appendChild(row); row=document.createElement('tr'); }
+        const date = new Date(currentYear, currentMonth, d), dateStr = formatDate(date);
+        const cell = document.createElement('td'); cell.textContent = d; cell.dataset.date = dateStr;
+        if (dateStr===todayStr) cell.classList.add('today');
+        const entry = allData.find(e=>e.date===dateStr);
+        if (entry) {
           cell.classList.add('has-data');
-          if (dayData.bleeding && dayData.bleeding.active) {
-            cell.classList.add('menstruation');
-          }
+          if (entry.bleeding?.active) cell.classList.add('menstruation');
         }
-
-        if (!dayData || !(dayData.bleeding && dayData.bleeding.active)) {
-          if (predictions) {
-            if (predictions.predictedPeriodDays.includes(dateStr)) {
-              cell.classList.add('predicted-menstruation');
-            }
-            if (predictions.ovulationDay === dateStr) {
-              cell.classList.add('ovulation');
-            } else if (predictions.fertileDays.includes(dateStr)) {
-              cell.classList.add('fertile');
-            }
-          }
+        if (!entry?.bleeding?.active && pred) {
+          if (pred.predictedPeriodDays.includes(dateStr)) cell.classList.add('predicted-menstruation');
+          if (pred.ovulationDay===dateStr) cell.classList.add('ovulation');
+          else if (pred.fertileDays.includes(dateStr)) cell.classList.add('fertile');
         }
-
-        cell.addEventListener('click', () => openDayModal(dateStr));
+        cell.addEventListener('click', ()=>openDayModal(dateStr));
         row.appendChild(cell);
       }
-      while (row.children.length < 7) {
-        const cell = document.createElement('td');
-        cell.classList.add('other-month');
-        row.appendChild(cell);
-      }
+      while (row.children.length<7) { const td=document.createElement('td'); td.classList.add('other-month'); row.appendChild(td); }
       calendarBody.appendChild(row);
-      calendarTable.classList.remove('hidden');
-      colorLegend.classList.remove('hidden');
-      calendarNav.classList.remove('hidden');
+      renderPredictionBar();
     }
 
-    // Modal
+    async function renderPredictionBar() {
+      const allData = await getAllData();
+      const pred = calculatePredictions(allData);
+      if (!pred) { predictionBar.textContent = '👋 Trage mindestens zwei Perioden ein, um Vorhersagen zu erhalten.'; return; }
+      const next = parseDate(pred.nextStart), diff = dayDiff(today, next);
+      let msg = `📅 Nächste Periode: ${next.toLocaleDateString('de-DE')}`;
+      if (diff===0) msg='🩸 Heute beginnt voraussichtlich deine Periode.';
+      else if (diff===1) msg='🩸 Morgen beginnt voraussichtlich deine Periode.';
+      else if (diff>0) msg += ` (in ${diff} Tagen)`;
+      else msg += ` (vor ${Math.abs(diff)} Tagen)`;
+      if (pred.ovulationDay && parseDate(pred.ovulationDay)>today) {
+        const ovDiff = dayDiff(today, parseDate(pred.ovulationDay));
+        if (ovDiff<=7) msg += ` · Eisprung in ${ovDiff} Tagen`;
+      }
+      predictionBar.textContent = msg;
+    }
+
     function openDayModal(dateStr) {
       selectedDateStr = dateStr;
-      modalDateEl.textContent = new Date(parseDate(dateStr)).toLocaleDateString('de-DE', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+      modalDateEl.textContent = new Date(parseDate(dateStr)).toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
       applyAdvancedMode();
       getDayData(dateStr).then(data => {
-        document.getElementById('bleeding-active').checked = data?.bleeding?.active || false;
-        document.getElementById('bleeding-intensity').value = data?.bleeding?.intensity || 'medium';
+        document.getElementById('bleeding-active').checked = data?.bleeding?.active||false;
+        document.getElementById('bleeding-intensity').value = data?.bleeding?.intensity||'medium';
         document.getElementById('bleeding-intensity').classList.toggle('hidden', !data?.bleeding?.active);
-        setSelectedSymptoms(data?.symptoms || []);
-        document.getElementById('mood').value = data?.mood || '';
-        document.getElementById('cervical-mucus').value = data?.cervicalMucus || '';
-        document.getElementById('temperature').value = data?.temperature || '';
-        document.getElementById('ovulation-test').value = data?.ovulationTest || '';
-        document.getElementById('sex').value = data?.sex || '';
-        document.getElementById('contraception').value = data?.contraception || '';
-        document.getElementById('note').value = data?.note || '';
-        document.getElementById('custom-tags').value = (data?.customTags || []).join(', ');
+        setSelectedSymptoms(data?.symptoms||[]);
+        document.getElementById('mood').value = data?.mood||'';
+        document.getElementById('cervical-mucus').value = data?.cervicalMucus||'';
+        document.getElementById('temperature').value = data?.temperature||'';
+        document.getElementById('ovulation-test').value = data?.ovulationTest||'';
+        document.getElementById('sex').value = data?.sex||'';
+        document.getElementById('contraception').value = data?.contraception||'';
+        document.getElementById('note').value = data?.note||'';
+        document.getElementById('custom-tags').value = (data?.customTags||[]).join(', ');
       });
       modal.classList.remove('hidden');
     }
 
-    function closeModal() {
-      modal.classList.add('hidden');
-      selectedDateStr = null;
-    }
+    function closeModal() { modal.classList.add('hidden'); selectedDateStr=null; }
 
-    document.getElementById('bleeding-active').addEventListener('change', function() {
-      document.getElementById('bleeding-intensity').classList.toggle('hidden', !this.checked);
-    });
-
-    document.getElementById('save-day').addEventListener('click', async () => {
-      if (!selectedDateStr) return;
+    document.getElementById('bleeding-active').addEventListener('change', function(){ document.getElementById('bleeding-intensity').classList.toggle('hidden',!this.checked); });
+    document.getElementById('save-day').addEventListener('click', async ()=>{
+      if(!selectedDateStr) return;
       const data = {
-        bleeding: {
-          active: document.getElementById('bleeding-active').checked,
-          intensity: document.getElementById('bleeding-intensity').value
-        },
+        bleeding:{ active:document.getElementById('bleeding-active').checked, intensity:document.getElementById('bleeding-intensity').value },
         symptoms: getSelectedSymptoms(),
-        mood: document.getElementById('mood').value || undefined,
-        cervicalMucus: getAdvancedMode() ? (document.getElementById('cervical-mucus').value || undefined) : undefined,
-        temperature: getAdvancedMode() ? (document.getElementById('temperature').value ? parseFloat(document.getElementById('temperature').value) : undefined) : undefined,
-        ovulationTest: getAdvancedMode() ? (document.getElementById('ovulation-test').value || undefined) : undefined,
-        sex: document.getElementById('sex').value || undefined,
-        contraception: document.getElementById('contraception').value || undefined,
-        note: document.getElementById('note').value || undefined,
-        customTags: document.getElementById('custom-tags').value.split(',').map(t => t.trim()).filter(t => t)
+        mood: document.getElementById('mood').value||undefined,
+        cervicalMucus: getAdvancedMode()?document.getElementById('cervical-mucus').value||undefined:undefined,
+        temperature: getAdvancedMode()? (document.getElementById('temperature').value?parseFloat(document.getElementById('temperature').value):undefined):undefined,
+        ovulationTest: getAdvancedMode()?document.getElementById('ovulation-test').value||undefined:undefined,
+        sex: document.getElementById('sex').value||undefined,
+        contraception: document.getElementById('contraception').value||undefined,
+        note: document.getElementById('note').value||undefined,
+        customTags: document.getElementById('custom-tags').value.split(',').map(t=>t.trim()).filter(t=>t)
       };
       await saveDayData(selectedDateStr, data);
       closeModal();
       renderCalendarView();
-      renderPredictionBar();
     });
-
-    document.getElementById('delete-day').addEventListener('click', async () => {
-      if (!selectedDateStr) return;
-      if (confirm('Eintrag wirklich löschen?')) {
-        await deleteDayData(selectedDateStr);
-        closeModal();
-        renderCalendarView();
-        renderPredictionBar();
-      }
+    document.getElementById('delete-day').addEventListener('click', async ()=>{
+      if(!selectedDateStr || !confirm('Eintrag wirklich löschen?')) return;
+      await deleteDayData(selectedDateStr);
+      closeModal();
+      renderCalendarView();
     });
-
     document.getElementById('close-modal').addEventListener('click', closeModal);
-    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+    modal.addEventListener('click', e=>{ if(e.target===modal) closeModal(); });
 
-    // Navigation
-    document.getElementById('prev-month').addEventListener('click', () => {
-      if (currentMonth === 0) setCurrentMonth(currentYear-1, 11);
-      else setCurrentMonth(currentYear, currentMonth-1);
-    });
-    document.getElementById('next-month').addEventListener('click', () => {
-      if (currentMonth === 11) setCurrentMonth(currentYear+1, 0);
-      else setCurrentMonth(currentYear, currentMonth+1);
-    });
-    document.getElementById('today-btn').addEventListener('click', () => {
-      setCurrentMonth(today.getFullYear(), today.getMonth());
-    });
-
-    // Legende
-    document.getElementById('legend-btn').addEventListener('click', () => {
-      alert('Farben im Kalender:\n\n🔴 Dunkelrot = eingetragene Periode\n🌸 Hellrot = vorhergesagte Periode\n🟢 Hellgrün = fruchtbare Tage\n🥬 Dunkelgrün = errechneter Eisprung\n\nEin kleiner Punkt unter dem Datum zeigt an, dass du dort etwas notiert hast.');
-    });
+    document.getElementById('prev-month').addEventListener('click', ()=>{ currentMonth===0? (currentYear--,currentMonth=11) : currentMonth--; renderCalendarView(); });
+    document.getElementById('next-month').addEventListener('click', ()=>{ currentMonth===11? (currentYear++,currentMonth=0) : currentMonth++; renderCalendarView(); });
+    document.getElementById('today-btn').addEventListener('click', ()=>{ currentMonth=today.getMonth(); currentYear=today.getFullYear(); renderCalendarView(); });
+    document.getElementById('legend-btn').addEventListener('click', ()=>alert('Farben:\n🔴 Rot = Periode\n🌸 Hellrot = erwartet\n🟢 Grün = fruchtbar\n🥬 Dunkelgrün = Eisprung'));
 
     // Onboarding
     const onboardingOverlay = document.getElementById('onboarding-overlay');
-    if (!localStorage.getItem('periTrack_onboardingDone')) {
-      onboardingOverlay.classList.remove('hidden');
-    }
-    document.getElementById('close-onboarding').addEventListener('click', () => {
-      onboardingOverlay.classList.add('hidden');
-      localStorage.setItem('periTrack_onboardingDone', 'true');
-    });
+    if(!localStorage.getItem('periTrack_onboardingDone')) onboardingOverlay.classList.remove('hidden');
+    document.getElementById('close-onboarding').addEventListener('click', ()=>{ onboardingOverlay.classList.add('hidden'); localStorage.setItem('periTrack_onboardingDone','true'); });
 
-    // Verlauf (Mini-Kalender)
-    async function renderHistoryView() {
-      const allData = await getAllData();
-      const predictions = calculatePredictions(allData);
-      // Zeige die letzten 3 Monate + aktuellen + nächsten Monat? Oder einfach 3 Monate zur Auswahl.
-      // Standard: aktueller Monat, letzter Monat, vorletzter
-      const months = [];
-      const now = new Date();
-      for (let i = -2; i <= 0; i++) {
-        const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-        months.push({ year: d.getFullYear(), month: d.getMonth() });
-      }
-      let html = '<div class="mini-calendar-container">';
-      months.forEach(({year, month}) => {
-        const monthName = new Date(year, month).toLocaleDateString('de-DE', { month:'long', year:'numeric' });
-        html += `<div class="mini-month"><h4>${monthName}</h4><div class="mini-grid">`;
-        // Wochentage
-        ['Mo','Di','Mi','Do','Fr','Sa','So'].forEach(d => html += `<div class="mini-weekday">${d}</div>`);
-        const firstDay = getFirstDayOfWeek(year, month);
-        const daysInMonth = getDaysInMonth(year, month);
-        for (let i=0; i<firstDay; i++) html += '<div class="mini-day"></div>';
-        for (let d=1; d<=daysInMonth; d++) {
-          const dateStr = formatDate(new Date(year, month, d));
-          let classes = 'mini-day';
-          if (dateStr === todayStr) classes += ' today';
-          const dayData = allData.find(e => e.date === dateStr);
-          if (dayData?.bleeding?.active) classes += ' menstruation';
-          else if (predictions?.predictedPeriodDays.includes(dateStr)) classes += ' predicted-menstruation';
-          if (predictions?.ovulationDay === dateStr) classes += ' ovulation';
-          else if (predictions?.fertileDays.includes(dateStr)) classes += ' fertile';
-          html += `<div class="${classes}">${d}</div>`;
-        }
-        html += '</div></div>';
-      });
-      html += '</div>';
-      document.getElementById('main-content').innerHTML = html;
-      calendarTable.classList.add('hidden');
-      colorLegend.classList.add('hidden');
-      calendarNav.classList.add('hidden');
+    // Panel Management
+    const panels = ['calendar-panel','history-panel','stats-panel','settings-panel'];
+    function showPanel(id) {
+      panels.forEach(p => document.getElementById(p).classList.toggle('active', p===id));
     }
 
-    // Tabs
-    function switchTab(tab) {
-      if (tab === 'calendar') {
-        setCurrentMonth(today.getFullYear(), today.getMonth());
-      } else if (tab === 'today') {
-        openDayModal(todayStr);
-      } else if (tab === 'history') {
-        renderHistoryView();
-        predictionBar.textContent = 'Verlauf der letzten Monate';
-      } else if (tab === 'stats') {
-        renderStatsView();
-      } else if (tab === 'settings') {
-        renderSettingsView();
-      }
-    }
-
-    async function renderStatsView() {
+    // Verlauf rendern
+    async function renderHistory() {
       const allData = await getAllData();
       const pred = calculatePredictions(allData);
-      let statsHtml = '<div class="stats"><h3>📊 Statistik</h3>';
-      if (pred) {
-        statsHtml += `<p>🔄 Vorhersage Zykluslänge: <strong>${pred.medianCycle} Tage</strong></p>`;
-        statsHtml += `<p>🩸 Nächste Periode: <strong>${new Date(parseDate(pred.nextStart)).toLocaleDateString('de-DE')}</strong></p>`;
-      } else {
-        statsHtml += '<p>Trage mindestens zwei Perioden ein.</p>';
+      const months = [];
+      // Zeige die letzten 12 Monate (oder ab frühestem Eintrag)
+      let earliest = today;
+      allData.forEach(e => { const d = parseDate(e.date); if (d < earliest) earliest = d; });
+      let start = new Date(earliest.getFullYear(), earliest.getMonth(), 1);
+      const end = new Date(today.getFullYear(), today.getMonth()+1, 0);
+      while (start <= end) {
+        months.push({ year: start.getFullYear(), month: start.getMonth() });
+        start.setMonth(start.getMonth()+1);
       }
-      const startDates = allData.filter(e => e.bleeding?.active).map(e => e.date).sort();
-      if (startDates.length) {
-        statsHtml += `<p>🗓️ Aufgezeichnete Periodenstarts: <strong>${startDates.length}</strong></p>`;
-        statsHtml += `<p>Letzte: <strong>${new Date(parseDate(startDates[startDates.length-1])).toLocaleDateString('de-DE')}</strong></p>`;
-      }
-      statsHtml += '</div>';
-      document.getElementById('main-content').innerHTML = statsHtml;
-      calendarTable.classList.add('hidden');
-      colorLegend.classList.add('hidden');
-      calendarNav.classList.add('hidden');
-      predictionBar.textContent = 'Statistik';
-    }
+      if (months.length === 0) months.push({ year: today.getFullYear(), month: today.getMonth() });
 
-    function renderSettingsView() {
-      const advanced = getAdvancedMode();
-      const settingsHtml = `
-        <div class="stats">
-          <h3>⚙️ Einstellungen</h3>
-          <div class="form-group toggle-label">
-            <span>Erweiterte Einträge (Temperatur, Schleim, Ovulationstest)</span>
-            <input type="checkbox" id="advanced-toggle" ${advanced ? 'checked' : ''}>
-          </div>
-          <button class="btn" id="export-data">📤 Daten exportieren (JSON)</button>
-          <button class="btn secondary" id="import-data">📥 Daten importieren</button>
-          <input type="file" id="import-file" accept=".json" class="hidden">
-          <button class="btn secondary" id="restart-onboarding">👋 Onboarding erneut anzeigen</button>
-        </div>`;
-      document.getElementById('main-content').innerHTML = settingsHtml;
-      calendarTable.classList.add('hidden');
-      colorLegend.classList.add('hidden');
-      calendarNav.classList.add('hidden');
-      predictionBar.textContent = 'Einstellungen';
-
-      document.getElementById('advanced-toggle').addEventListener('change', (e) => {
-        setAdvancedMode(e.target.checked);
-        applyAdvancedMode();
-      });
-      document.getElementById('export-data').addEventListener('click', async () => {
-        const all = await getAllData();
-        const blob = new Blob([JSON.stringify(all, null, 2)], {type: 'application/json'});
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'peritrack_backup.json';
-        a.click();
-      });
-      document.getElementById('import-data').addEventListener('click', () => {
-        document.getElementById('import-file').click();
-      });
-      document.getElementById('import-file').addEventListener('change', async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const text = await file.text();
-        const data = JSON.parse(text);
-        if (Array.isArray(data)) {
-          for (let item of data) {
-            await saveDayData(item.date, item);
-          }
-          alert('Import erfolgreich!');
-          switchTab('calendar');
-        } else {
-          alert('Ungültiges Format.');
+      let html = '';
+      months.forEach(({year, month}) => {
+        const monthName = new Date(year, month).toLocaleDateString('de-DE', {month:'long', year:'numeric'});
+        html += `<div class="month-calendar"><div class="month-title">${monthName}</div><table><thead><tr><th>Mo</th><th>Di</th><th>Mi</th><th>Do</th><th>Fr</th><th>Sa</th><th>So</th></tr></thead><tbody>`;
+        const firstDay = getFirstDayOfWeek(year, month);
+        const days = getDaysInMonth(year, month);
+        let row = '<tr>';
+        for (let i=0; i<firstDay; i++) row += '<td></td>';
+        for (let d=1; d<=days; d++) {
+          if ((firstDay+d-1)%7===0 && d!==1) { row += '</tr><tr>'; }
+          const dateStr = formatDate(new Date(year, month, d));
+          let cls = '';
+          const entry = allData.find(e=>e.date===dateStr);
+          if (entry?.bleeding?.active) cls = 'menstruation';
+          else if (pred?.predictedPeriodDays.includes(dateStr)) cls = 'predicted-menstruation';
+          if (pred?.ovulationDay===dateStr) cls = 'ovulation';
+          else if (pred?.fertileDays.includes(dateStr) && !cls) cls = 'fertile';
+          if (dateStr===todayStr) cls += ' today';
+          row += `<td class="${cls}" data-date="${dateStr}">${d}</td>`;
         }
+        while ((firstDay+days-1)%7 < 6) { row += '<td></td>'; days++; }
+        row += '</tr>';
+        html += row + '</tbody></table></div>';
       });
-      document.getElementById('restart-onboarding').addEventListener('click', () => {
-        localStorage.removeItem('periTrack_onboardingDone');
-        onboardingOverlay.classList.remove('hidden');
-      });
-    }
-
-    document.getElementById('tab-calendar').addEventListener('click', () => switchTab('calendar'));
-    document.getElementById('tab-today').addEventListener('click', () => switchTab('today'));
-    document.getElementById('tab-history').addEventListener('click', () => switchTab('history'));
-    document.getElementById('tab-stats').addEventListener('click', () => switchTab('stats'));
-    document.getElementById('tab-settings').addEventListener('click', () => switchTab('settings'));
-
-    // Initialisierung
-    openDB().then(() => {
-      setCurrentMonth(today.getFullYear(), today.getMonth());
-      applyAdvancedMode();
-    });
-
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js').catch(() => {});
+      document.getElementById('history-panel').innerHTML = html;
+      // Event-Listener für Zellen im Verlauf (nur lesend)
+      document.querySelectorAll('#history-panel td[data-date]').forEach(td => {
+        td.addEventListener('click', async (e) => {
+          const dateStr = e.currentTarget.dataset.date;
+          const data = await getDayData(dateStr);
+          showReadonlyInfo(dateStr, data);
+        });
       });
     }
+
+    function showReadonlyInfo(dateStr, data) {
+      let content = `<h3>${new Date(parseDate(dateStr)).toLocaleDateString('de-DE', {weekday:'long', day:'numeric', month:'long', year:'numeric'})}</h3>`;
+      if (!data || Object.keys(data).length===0) { content += '<p>Keine Einträge</p>'; }
+      else {
+        if (data.bleeding?.active) content += `<div class="detail-row"><span class="detail-label">Periode:</span> ${data.bleeding.intensity}</div>`;
+        if (data.symptoms?.length) content += `<div class="detail-row"><span class="detail-label">Symptome:</span> ${data.symptoms.join(', ')}</div>`;
+        if (data.mood) content += `<div class="detail-row"><span class="detail-label">Stimmung:</span> ${data.mood}</div>`;
+        if (data.cervicalMucus) content += `<div class="detail-row"><span class="detail-label">Schleim:</span> ${data.cervicalMucus}</div>`;
+        if (data.temperature) content += `<div class="detail-row"><span class="detail-label">Temperatur:</span> ${data.temperature} °C</div>`;
+        if (data.ovulationTest) content += `<div class="detail-row"><span class="detail-label">Ovutest:</span> ${data.ovulationTest}</div>`;
+        if (data.sex) content += `<div class="detail-row"><span class="detail-label">Verkehr:</span> ${data.sex}</div>`;
+        if (data.contraception) content += `<div class="detail-row"><span class="detail-label">Verhütung:</span> ${data.contraception}</div>`;
+        if (data.note) content += `<div class="detail-row"><span class="detail-label">Notiz:</span> ${data.note}</div>`;
+        if (data.customTags?.length) content += `<div class="detail-row"><span class="detail-label">Tags:</span> ${data.customTags.join(', ')}</div>`;
+      }
+      content += '<button class="btn secondary" id="close-info">Schließen</button>';
+      infoModalContent.innerHTML = content;
+      infoModal.classList.remove('hidden');
+      document.getElementById('close-info').addEventListener('click', ()=> infoModal.classList.add('hidden'));
+    }
+    infoModal.addEventListener('click', e=>{ if(e.target===infoModal) infoModal.classList.add('hidden'); });
+
+    async function renderStats() {
+      const allData = await getAllData();
+      const pred = calculatePredictions(allData);
+      let html = '<h3>📊 Statistik</h3>';
+      if (pred) {
+        html += `<p>🔄 Zykluslänge: <strong>${pred.medianCycle} Tage</strong></p>`;
+        html += `<p>🩸 Nächste Periode: <strong>${new Date(parseDate(pred.nextStart)).toLocaleDateString('de-DE')}</strong></p>`;
+      } else html += '<p>Trage mindestens zwei Perioden ein.</p>';
+      const starts = allData.filter(e=>e.bleeding?.active).map(e=>e.date).sort();
+      if (starts.length) html += `<p>🗓️ Periodenstarts: ${starts.length}</p><p>Letzte: ${new Date(parseDate(starts[starts.length-1])).toLocaleDateString('de-DE')}</p>`;
+      document.getElementById('stats-content').innerHTML = html;
+    }
+
+    function renderSettings() {
+      const adv = getAdvancedMode();
+      document.getElementById('settings-content').innerHTML = `
+        <h3>⚙️ Einstellungen</h3>
+        <div class="form-group toggle-label"><span>Erweiterte Einträge</span> <input type="checkbox" id="advanced-toggle" ${adv?'checked':''}></div>
+        <button class="btn" id="export-data">📤 Daten exportieren</button>
+        <button class="btn secondary" id="import-data">📥 Daten importieren</button>
+        <input type="file" id="import-file" accept=".json" class="hidden">
+        <button class="btn secondary" id="restart-onboarding">👋 Onboarding erneut</button>`;
+      document.getElementById('advanced-toggle').addEventListener('change', e=>{ setAdvancedMode(e.target.checked); applyAdvancedMode(); });
+      document.getElementById('export-data').addEventListener('click', async ()=>{
+        const all = await getAllData();
+        const blob = new Blob([JSON.stringify(all)],{type:'application/json'});
+        const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='peritrack_backup.json'; a.click();
+      });
+      document.getElementById('import-data').addEventListener('click', ()=>document.getElementById('import-file').click());
+      document.getElementById('import-file').addEventListener('change', async e=>{
+        const file = e.target.files[0]; if(!file) return;
+        const text = await file.text();
+        try {
+          const data = JSON.parse(text);
+          if(Array.isArray(data)) { for(let item of data) await saveDayData(item.date, item); alert('Import erfolgreich!'); switchTab('calendar'); }
+          else alert('Ungültiges Format.');
+        } catch(ex) { alert('Fehler beim Import.'); }
+      });
+      document.getElementById('restart-onboarding').addEventListener('click', ()=>{ localStorage.removeItem('periTrack_onboardingDone'); onboardingOverlay.classList.remove('hidden'); });
+    }
+
+    function switchTab(tab) {
+      if (tab==='calendar') { showPanel('calendar-panel'); renderCalendarView(); }
+      else if (tab==='today') { showPanel('calendar-panel'); openDayModal(todayStr); }
+      else if (tab==='history') { showPanel('history-panel'); renderHistory(); }
+      else if (tab==='stats') { showPanel('stats-panel'); renderStats(); }
+      else if (tab==='settings') { showPanel('settings-panel'); renderSettings(); }
+    }
+
+    document.getElementById('tab-calendar').addEventListener('click', ()=>switchTab('calendar'));
+    document.getElementById('tab-today').addEventListener('click', ()=>switchTab('today'));
+    document.getElementById('tab-history').addEventListener('click', ()=>switchTab('history'));
+    document.getElementById('tab-stats').addEventListener('click', ()=>switchTab('stats'));
+    document.getElementById('tab-settings').addEventListener('click', ()=>switchTab('settings'));
+
+    openDB().then(() => { renderCalendarView(); applyAdvancedMode(); });
+
+    if ('serviceWorker' in navigator) window.addEventListener('load', ()=> navigator.serviceWorker.register('sw.js').catch(()=>{}));
   })();
 </script>
 </body>
