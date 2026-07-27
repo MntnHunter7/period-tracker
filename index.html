@@ -205,6 +205,51 @@
     .toggle-label { display: flex; justify-content: space-between; align-items: center; }
     .toggle-label input[type="checkbox"] { width: 40px; height: 24px; }
     .onboarding-step { margin-bottom: 20px; }
+
+    /* Verlauf Mini-Kalender */
+    .mini-calendar-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding: 12px;
+      justify-content: center;
+    }
+    .mini-month {
+      background: #fff;
+      border-radius: 12px;
+      padding: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+      width: 140px;
+      font-size: 0.75rem;
+    }
+    .mini-month h4 {
+      text-align: center;
+      margin-bottom: 4px;
+      font-size: 0.85rem;
+      color: #e91e63;
+    }
+    .mini-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      text-align: center;
+      gap: 1px;
+    }
+    .mini-day {
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+    }
+    .mini-day.menstruation { background: #ffcdd2; }
+    .mini-day.predicted-menstruation { background: #ffebee; }
+    .mini-day.fertile { background: #e8f5e9; }
+    .mini-day.ovulation { background: #a5d6a7; }
+    .mini-day.today { border: 1px solid #e91e63; font-weight: bold; }
+    .mini-weekday {
+      font-weight: bold;
+      color: #888;
+    }
   </style>
 </head>
 <body>
@@ -214,25 +259,29 @@
     <button id="legend-btn" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:rgba(255,255,255,0.2); border:none; color:white; border-radius:50%; width:30px; height:30px; font-size:1.2rem; cursor:pointer;" title="Legende">?</button>
   </header>
   <div id="prediction-bar" class="prediction-bar"></div>
-  <div class="calendar-nav">
+  <div class="calendar-nav" id="calendar-nav">
     <button id="prev-month">←</button>
     <span class="month-year" id="month-year"></span>
     <button id="next-month">→</button>
     <button id="today-btn" class="today-btn">Heute</button>
   </div>
-  <table class="calendar" id="calendar-table">
-    <thead><tr><th>Mo</th><th>Di</th><th>Mi</th><th>Do</th><th>Fr</th><th>Sa</th><th>So</th></tr></thead>
-    <tbody id="calendar-body"></tbody>
-  </table>
-  <div class="legend" id="color-legend">
-    <span><span class="dot menstruation"></span> Periode</span>
-    <span><span class="dot predicted"></span> erwartet</span>
-    <span><span class="dot fertile"></span> fruchtbar</span>
-    <span><span class="dot ovulation"></span> Eisprung</span>
+  <div id="main-content">
+    <!-- Kalenderansicht (Standard) -->
+    <table class="calendar" id="calendar-table">
+      <thead><tr><th>Mo</th><th>Di</th><th>Mi</th><th>Do</th><th>Fr</th><th>Sa</th><th>So</th></tr></thead>
+      <tbody id="calendar-body"></tbody>
+    </table>
+    <div class="legend" id="color-legend">
+      <span><span class="dot menstruation"></span> Periode</span>
+      <span><span class="dot predicted"></span> erwartet</span>
+      <span><span class="dot fertile"></span> fruchtbar</span>
+      <span><span class="dot ovulation"></span> Eisprung</span>
+    </div>
   </div>
   <div class="bottom-nav">
     <button id="tab-calendar">📅 Kalender</button>
     <button id="tab-today">✏️ Heute</button>
+    <button id="tab-history">🗂️ Verlauf</button>
     <button id="tab-stats">📊 Statistik</button>
     <button id="tab-settings">⚙️ Einstellungen</button>
   </div>
@@ -252,7 +301,7 @@
       </select>
     </div>
     <div class="form-group">
-      <label>Symptome</label>
+      <label>Symptome (nur zur persönlichen Aufzeichnung)</label>
       <div id="symptoms-list" class="chip-group"></div>
     </div>
     <div class="form-group">
@@ -348,7 +397,10 @@
       <p><strong>3. Vorhersage</strong><br>Sobald du <strong>zwei Perioden</strong> eingetragen hast, berechnet die App Zykluslänge und fruchtbare Tage.</p>
     </div>
     <div class="onboarding-step">
-      <p><strong>4. Optionale Felder</strong><br>In den <em>Einstellungen</em> kannst du erweiterte Einträge (Temperatur, Schleim, Ovulationstest) aktivieren – nur wenn du sie nutzt.</p>
+      <p><strong>4. Symptome & Notizen</strong><br>Einträge wie Krämpfe, Stimmung oder Zervixschleim helfen dir, deinen Körper besser zu verstehen – sie fließen aber nicht in die Berechnung der Vorhersage ein.</p>
+    </div>
+    <div class="onboarding-step">
+      <p><strong>5. Optionale Felder</strong><br>In den <em>Einstellungen</em> kannst du erweiterte Einträge (Temperatur, Schleim, Ovulationstest) aktivieren – nur wenn du sie nutzt.</p>
     </div>
     <button class="btn" id="close-onboarding">Los geht's!</button>
   </div>
@@ -446,13 +498,17 @@
     function setCurrentMonth(year, month) {
       currentYear = year;
       currentMonth = month;
-      renderCalendar();
+      renderCalendarView();
       renderPredictionBar();
     }
 
     // UI-Elemente
     const monthYearEl = document.getElementById('month-year');
     const calendarBody = document.getElementById('calendar-body');
+    const calendarTable = document.getElementById('calendar-table');
+    const colorLegend = document.getElementById('color-legend');
+    const calendarNav = document.getElementById('calendar-nav');
+    const mainContent = document.getElementById('main-content');
     const modal = document.getElementById('modal');
     const modalDateEl = document.getElementById('modal-date');
     const predictionBar = document.getElementById('prediction-bar');
@@ -505,69 +561,9 @@
       });
     }
 
-    // Initial Chips bauen
     buildSymptomChips();
 
-    // Kalender rendern
-    async function renderCalendar() {
-      monthYearEl.textContent = new Date(currentYear, currentMonth).toLocaleDateString('de-DE', { month:'long', year:'numeric' });
-      const daysInMonth = getDaysInMonth(currentYear, currentMonth);
-      const firstDay = getFirstDayOfWeek(currentYear, currentMonth);
-      calendarBody.innerHTML = '';
-      let row = document.createElement('tr');
-      for (let i=0; i<firstDay; i++) {
-        const cell = document.createElement('td');
-        cell.classList.add('other-month');
-        row.appendChild(cell);
-      }
-      const allData = await getAllData();
-      const predictions = calculatePredictions(allData);
-
-      for (let d=1; d<=daysInMonth; d++) {
-        if ((firstDay + d - 1) % 7 === 0 && row.children.length > 0) {
-          calendarBody.appendChild(row);
-          row = document.createElement('tr');
-        }
-        const date = new Date(currentYear, currentMonth, d);
-        const dateStr = formatDate(date);
-        const cell = document.createElement('td');
-        cell.textContent = d;
-        cell.dataset.date = dateStr;
-
-        if (dateStr === todayStr) cell.classList.add('today');
-
-        const dayData = allData.find(entry => entry.date === dateStr);
-        if (dayData) {
-          cell.classList.add('has-data');
-          if (dayData.bleeding && dayData.bleeding.active) {
-            cell.classList.add('menstruation');
-          }
-        }
-
-        if (!dayData || !(dayData.bleeding && dayData.bleeding.active)) {
-          if (predictions) {
-            if (predictions.predictedPeriodDays.includes(dateStr)) {
-              cell.classList.add('predicted-menstruation');
-            }
-            if (predictions.ovulationDay === dateStr) {
-              cell.classList.add('ovulation');
-            } else if (predictions.fertileDays.includes(dateStr)) {
-              cell.classList.add('fertile');
-            }
-          }
-        }
-
-        cell.addEventListener('click', () => openDayModal(dateStr));
-        row.appendChild(cell);
-      }
-      while (row.children.length < 7) {
-        const cell = document.createElement('td');
-        cell.classList.add('other-month');
-        row.appendChild(cell);
-      }
-      calendarBody.appendChild(row);
-    }
-
+    // Berechnungen
     function calculatePredictions(allData) {
       const startDates = [];
       const sorted = allData.filter(e => e.bleeding && e.bleeding.active).sort((a,b) => a.date.localeCompare(b.date));
@@ -637,6 +633,12 @@
       };
     }
 
+    function dayDiff(date1, date2) {
+      const d1 = new Date(date1.getFullYear(), date1.getMonth(), date1.getDate());
+      const d2 = new Date(date2.getFullYear(), date2.getMonth(), date2.getDate());
+      return Math.round((d2 - d1) / 86400000);
+    }
+
     function renderPredictionBar() {
       getAllData().then(allData => {
         const pred = calculatePredictions(allData);
@@ -645,18 +647,81 @@
           return;
         }
         const next = parseDate(pred.nextStart);
-        const diff = Math.round((next - today) / 86400000);
+        const diff = dayDiff(today, next);
         let msg = `📅 Nächste Periode: ${next.toLocaleDateString('de-DE')}`;
         if (diff === 0) msg = '🩸 Heute beginnt voraussichtlich deine Periode.';
         else if (diff === 1) msg = '🩸 Morgen beginnt voraussichtlich deine Periode.';
         else if (diff > 0) msg += ` (in ${diff} Tagen)`;
         else msg += ` (vor ${Math.abs(diff)} Tagen)`;
         if (pred.ovulationDay && parseDate(pred.ovulationDay) > today) {
-          const ovDiff = Math.round((parseDate(pred.ovulationDay) - today) / 86400000);
+          const ovDiff = dayDiff(today, parseDate(pred.ovulationDay));
           if (ovDiff <= 7 && ovDiff >= 0) msg += ` · Eisprung in ${ovDiff} Tagen`;
         }
         predictionBar.textContent = msg;
       });
+    }
+
+    // Kalenderansicht
+    async function renderCalendarView() {
+      monthYearEl.textContent = new Date(currentYear, currentMonth).toLocaleDateString('de-DE', { month:'long', year:'numeric' });
+      const daysInMonth = getDaysInMonth(currentYear, currentMonth);
+      const firstDay = getFirstDayOfWeek(currentYear, currentMonth);
+      calendarBody.innerHTML = '';
+      let row = document.createElement('tr');
+      for (let i=0; i<firstDay; i++) {
+        const cell = document.createElement('td');
+        cell.classList.add('other-month');
+        row.appendChild(cell);
+      }
+      const allData = await getAllData();
+      const predictions = calculatePredictions(allData);
+
+      for (let d=1; d<=daysInMonth; d++) {
+        if ((firstDay + d - 1) % 7 === 0 && row.children.length > 0) {
+          calendarBody.appendChild(row);
+          row = document.createElement('tr');
+        }
+        const date = new Date(currentYear, currentMonth, d);
+        const dateStr = formatDate(date);
+        const cell = document.createElement('td');
+        cell.textContent = d;
+        cell.dataset.date = dateStr;
+
+        if (dateStr === todayStr) cell.classList.add('today');
+
+        const dayData = allData.find(entry => entry.date === dateStr);
+        if (dayData) {
+          cell.classList.add('has-data');
+          if (dayData.bleeding && dayData.bleeding.active) {
+            cell.classList.add('menstruation');
+          }
+        }
+
+        if (!dayData || !(dayData.bleeding && dayData.bleeding.active)) {
+          if (predictions) {
+            if (predictions.predictedPeriodDays.includes(dateStr)) {
+              cell.classList.add('predicted-menstruation');
+            }
+            if (predictions.ovulationDay === dateStr) {
+              cell.classList.add('ovulation');
+            } else if (predictions.fertileDays.includes(dateStr)) {
+              cell.classList.add('fertile');
+            }
+          }
+        }
+
+        cell.addEventListener('click', () => openDayModal(dateStr));
+        row.appendChild(cell);
+      }
+      while (row.children.length < 7) {
+        const cell = document.createElement('td');
+        cell.classList.add('other-month');
+        row.appendChild(cell);
+      }
+      calendarBody.appendChild(row);
+      calendarTable.classList.remove('hidden');
+      colorLegend.classList.remove('hidden');
+      calendarNav.classList.remove('hidden');
     }
 
     // Modal
@@ -709,7 +774,7 @@
       };
       await saveDayData(selectedDateStr, data);
       closeModal();
-      renderCalendar();
+      renderCalendarView();
       renderPredictionBar();
     });
 
@@ -718,7 +783,7 @@
       if (confirm('Eintrag wirklich löschen?')) {
         await deleteDayData(selectedDateStr);
         closeModal();
-        renderCalendar();
+        renderCalendarView();
         renderPredictionBar();
       }
     });
@@ -754,14 +819,64 @@
       localStorage.setItem('periTrack_onboardingDone', 'true');
     });
 
+    // Verlauf (Mini-Kalender)
+    async function renderHistoryView() {
+      const allData = await getAllData();
+      const predictions = calculatePredictions(allData);
+      // Zeige die letzten 3 Monate + aktuellen + nächsten Monat? Oder einfach 3 Monate zur Auswahl.
+      // Standard: aktueller Monat, letzter Monat, vorletzter
+      const months = [];
+      const now = new Date();
+      for (let i = -2; i <= 0; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+        months.push({ year: d.getFullYear(), month: d.getMonth() });
+      }
+      let html = '<div class="mini-calendar-container">';
+      months.forEach(({year, month}) => {
+        const monthName = new Date(year, month).toLocaleDateString('de-DE', { month:'long', year:'numeric' });
+        html += `<div class="mini-month"><h4>${monthName}</h4><div class="mini-grid">`;
+        // Wochentage
+        ['Mo','Di','Mi','Do','Fr','Sa','So'].forEach(d => html += `<div class="mini-weekday">${d}</div>`);
+        const firstDay = getFirstDayOfWeek(year, month);
+        const daysInMonth = getDaysInMonth(year, month);
+        for (let i=0; i<firstDay; i++) html += '<div class="mini-day"></div>';
+        for (let d=1; d<=daysInMonth; d++) {
+          const dateStr = formatDate(new Date(year, month, d));
+          let classes = 'mini-day';
+          if (dateStr === todayStr) classes += ' today';
+          const dayData = allData.find(e => e.date === dateStr);
+          if (dayData?.bleeding?.active) classes += ' menstruation';
+          else if (predictions?.predictedPeriodDays.includes(dateStr)) classes += ' predicted-menstruation';
+          if (predictions?.ovulationDay === dateStr) classes += ' ovulation';
+          else if (predictions?.fertileDays.includes(dateStr)) classes += ' fertile';
+          html += `<div class="${classes}">${d}</div>`;
+        }
+        html += '</div></div>';
+      });
+      html += '</div>';
+      document.getElementById('main-content').innerHTML = html;
+      calendarTable.classList.add('hidden');
+      colorLegend.classList.add('hidden');
+      calendarNav.classList.add('hidden');
+    }
+
     // Tabs
-    document.getElementById('tab-calendar').addEventListener('click', () => {
-      setCurrentMonth(today.getFullYear(), today.getMonth());
-    });
-    document.getElementById('tab-today').addEventListener('click', () => {
-      openDayModal(todayStr);
-    });
-    document.getElementById('tab-stats').addEventListener('click', async () => {
+    function switchTab(tab) {
+      if (tab === 'calendar') {
+        setCurrentMonth(today.getFullYear(), today.getMonth());
+      } else if (tab === 'today') {
+        openDayModal(todayStr);
+      } else if (tab === 'history') {
+        renderHistoryView();
+        predictionBar.textContent = 'Verlauf der letzten Monate';
+      } else if (tab === 'stats') {
+        renderStatsView();
+      } else if (tab === 'settings') {
+        renderSettingsView();
+      }
+    }
+
+    async function renderStatsView() {
       const allData = await getAllData();
       const pred = calculatePredictions(allData);
       let statsHtml = '<div class="stats"><h3>📊 Statistik</h3>';
@@ -777,11 +892,14 @@
         statsHtml += `<p>Letzte: <strong>${new Date(parseDate(startDates[startDates.length-1])).toLocaleDateString('de-DE')}</strong></p>`;
       }
       statsHtml += '</div>';
-      document.getElementById('calendar-body').innerHTML = statsHtml;
-      document.getElementById('month-year').textContent = 'Statistik';
-      document.getElementById('prediction-bar').textContent = '';
-    });
-    document.getElementById('tab-settings').addEventListener('click', () => {
+      document.getElementById('main-content').innerHTML = statsHtml;
+      calendarTable.classList.add('hidden');
+      colorLegend.classList.add('hidden');
+      calendarNav.classList.add('hidden');
+      predictionBar.textContent = 'Statistik';
+    }
+
+    function renderSettingsView() {
       const advanced = getAdvancedMode();
       const settingsHtml = `
         <div class="stats">
@@ -795,9 +913,11 @@
           <input type="file" id="import-file" accept=".json" class="hidden">
           <button class="btn secondary" id="restart-onboarding">👋 Onboarding erneut anzeigen</button>
         </div>`;
-      document.getElementById('calendar-body').innerHTML = settingsHtml;
-      document.getElementById('month-year').textContent = 'Einstellungen';
-      document.getElementById('prediction-bar').textContent = '';
+      document.getElementById('main-content').innerHTML = settingsHtml;
+      calendarTable.classList.add('hidden');
+      colorLegend.classList.add('hidden');
+      calendarNav.classList.add('hidden');
+      predictionBar.textContent = 'Einstellungen';
 
       document.getElementById('advanced-toggle').addEventListener('change', (e) => {
         setAdvancedMode(e.target.checked);
@@ -824,7 +944,7 @@
             await saveDayData(item.date, item);
           }
           alert('Import erfolgreich!');
-          setCurrentMonth(today.getFullYear(), today.getMonth());
+          switchTab('calendar');
         } else {
           alert('Ungültiges Format.');
         }
@@ -833,7 +953,13 @@
         localStorage.removeItem('periTrack_onboardingDone');
         onboardingOverlay.classList.remove('hidden');
       });
-    });
+    }
+
+    document.getElementById('tab-calendar').addEventListener('click', () => switchTab('calendar'));
+    document.getElementById('tab-today').addEventListener('click', () => switchTab('today'));
+    document.getElementById('tab-history').addEventListener('click', () => switchTab('history'));
+    document.getElementById('tab-stats').addEventListener('click', () => switchTab('stats'));
+    document.getElementById('tab-settings').addEventListener('click', () => switchTab('settings'));
 
     // Initialisierung
     openDB().then(() => {
