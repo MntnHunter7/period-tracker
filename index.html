@@ -146,6 +146,7 @@
     .dot.fertile-low { background: #e8f5e9; }
     .dot.fertile-high { background: #a5d6a7; }
     .dot.ovulation { background: #1b5e20; }
+    .dot.low { background: #eee; border: 1px solid #ccc; }
 
     .prediction-bar {
       text-align: center;
@@ -286,6 +287,7 @@
       <span><span class="dot fertile-low"></span> gewöhnlich fruchtbar</span>
       <span><span class="dot fertile-high"></span> erhöht fruchtbar</span>
       <span><span class="dot ovulation"></span> Eisprung</span>
+      <span><span class="dot low"></span> gering</span>
     </div>
   </div>
 
@@ -310,6 +312,7 @@
   </div>
 </div>
 
+<!-- Tageseintrag-Modal -->
 <div id="modal" class="modal-overlay hidden">
   <div class="modal">
     <h3 id="modal-date"></h3>
@@ -321,6 +324,21 @@
         <option value="heavy">Stark</option>
         <option value="spotting">Schmierblutung</option>
       </select>
+    </div>
+    <div class="form-group">
+      <label><input type="checkbox" id="range-mode"> Mehrtägig (Zeitraum)</label>
+      <div id="range-fields" class="hidden">
+        <div style="display:flex; gap:10px; align-items:center;">
+          <div style="flex:1;">
+            <label>Von</label>
+            <input type="date" id="range-from">
+          </div>
+          <div style="flex:1;">
+            <label>Bis</label>
+            <input type="date" id="range-to">
+          </div>
+        </div>
+      </div>
     </div>
     <div class="form-group">
       <label>Symptome (nur zur persönlichen Aufzeichnung)</label>
@@ -398,6 +416,7 @@
   </div>
 </div>
 
+<!-- Readonly Info Modal für Verlauf -->
 <div id="info-modal" class="modal-overlay hidden">
   <div class="modal" id="info-modal-content"></div>
 </div>
@@ -637,6 +656,10 @@
       selectedDateStr = dateStr;
       modalDateEl.textContent = new Date(parseDate(dateStr)).toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
       applyAdvancedMode();
+      // Reset range mode
+      document.getElementById('range-mode').checked = false;
+      document.getElementById('range-fields').classList.add('hidden');
+      document.getElementById('bleeding-active').disabled = false;
       getDayData(dateStr).then(data => {
         document.getElementById('bleeding-active').checked = data?.bleeding?.active||false;
         document.getElementById('bleeding-intensity').value = data?.bleeding?.intensity||'medium';
@@ -656,25 +679,94 @@
 
     function closeModal() { modal.classList.add('hidden'); selectedDateStr=null; }
 
-    document.getElementById('bleeding-active').addEventListener('change', function(){ document.getElementById('bleeding-intensity').classList.toggle('hidden',!this.checked); });
+    // Neue Logik für Zeitraum
+    document.getElementById('range-mode').addEventListener('change', function() {
+      const rangeMode = this.checked;
+      const rangeFields = document.getElementById('range-fields');
+      const bleedingCheck = document.getElementById('bleeding-active');
+      const intensitySelect = document.getElementById('bleeding-intensity');
+      if (rangeMode) {
+        rangeFields.classList.remove('hidden');
+        bleedingCheck.checked = true;
+        bleedingCheck.disabled = true;
+        intensitySelect.classList.remove('hidden');
+        // Von-Datum auf angeklickten Tag setzen
+        document.getElementById('range-from').value = selectedDateStr;
+        document.getElementById('range-to').value = selectedDateStr;
+      } else {
+        rangeFields.classList.add('hidden');
+        bleedingCheck.disabled = false;
+        intensitySelect.classList.toggle('hidden', !bleedingCheck.checked);
+      }
+    });
+
+    document.getElementById('bleeding-active').addEventListener('change', function() {
+      document.getElementById('bleeding-intensity').classList.toggle('hidden', !this.checked);
+    });
+
     document.getElementById('save-day').addEventListener('click', async ()=>{
       if(!selectedDateStr) return;
-      const data = {
-        bleeding:{ active:document.getElementById('bleeding-active').checked, intensity:document.getElementById('bleeding-intensity').value },
-        symptoms: getSelectedSymptoms(),
-        mood: document.getElementById('mood').value||undefined,
-        cervicalMucus: getAdvancedMode()?document.getElementById('cervical-mucus').value||undefined:undefined,
-        temperature: getAdvancedMode()? (document.getElementById('temperature').value?parseFloat(document.getElementById('temperature').value):undefined):undefined,
-        ovulationTest: getAdvancedMode()?document.getElementById('ovulation-test').value||undefined:undefined,
-        sex: document.getElementById('sex').value||undefined,
-        contraception: document.getElementById('contraception').value||undefined,
-        note: document.getElementById('note').value||undefined,
-        customTags: document.getElementById('custom-tags').value.split(',').map(t=>t.trim()).filter(t=>t)
-      };
-      await saveDayData(selectedDateStr, data);
+      const rangeMode = document.getElementById('range-mode').checked;
+      const intensity = document.getElementById('bleeding-intensity').value;
+      const symptoms = getSelectedSymptoms();
+      const mood = document.getElementById('mood').value||undefined;
+      const cervicalMucus = getAdvancedMode()?document.getElementById('cervical-mucus').value||undefined:undefined;
+      const temperature = getAdvancedMode()? (document.getElementById('temperature').value?parseFloat(document.getElementById('temperature').value):undefined):undefined;
+      const ovulationTest = getAdvancedMode()?document.getElementById('ovulation-test').value||undefined:undefined;
+      const sex = document.getElementById('sex').value||undefined;
+      const contraception = document.getElementById('contraception').value||undefined;
+      const note = document.getElementById('note').value||undefined;
+      const customTags = document.getElementById('custom-tags').value.split(',').map(t=>t.trim()).filter(t=>t);
+
+      if (rangeMode) {
+        const from = document.getElementById('range-from').value;
+        const to = document.getElementById('range-to').value;
+        if (!from || !to) { alert('Bitte Von- und Bis-Datum auswählen.'); return; }
+        const fromDate = parseDate(from);
+        const toDate = parseDate(to);
+        if (fromDate > toDate) { alert('Das Bis-Datum muss nach dem Von-Datum liegen.'); return; }
+        // Alle Tage im Zeitraum markieren
+        for (let d = new Date(fromDate); d <= toDate; d.setDate(d.getDate()+1)) {
+          const ds = formatDate(d);
+          const existing = await getDayData(ds);
+          const newData = { bleeding: { active: true, intensity } };
+          if (symptoms.length) newData.symptoms = symptoms;
+          if (mood) newData.mood = mood;
+          if (cervicalMucus) newData.cervicalMucus = cervicalMucus;
+          if (temperature) newData.temperature = temperature;
+          if (ovulationTest) newData.ovulationTest = ovulationTest;
+          if (sex) newData.sex = sex;
+          if (contraception) newData.contraception = contraception;
+          if (note) newData.note = note;
+          if (customTags.length) newData.customTags = customTags;
+          if (existing) {
+            // Bestehende Daten erhalten, nur bleeding überschreiben, andere Felder aktualisieren
+            await saveDayData(ds, { ...existing, ...newData });
+          } else {
+            await saveDayData(ds, newData);
+          }
+        }
+      } else {
+        const bleedingActive = document.getElementById('bleeding-active').checked;
+        const data = {
+          bleeding: bleedingActive ? { active: true, intensity } : { active: false },
+          symptoms,
+          mood,
+          cervicalMucus,
+          temperature,
+          ovulationTest,
+          sex,
+          contraception,
+          note,
+          customTags
+        };
+        await saveDayData(selectedDateStr, data);
+      }
+
       closeModal();
       renderCalendarView();
     });
+
     document.getElementById('delete-day').addEventListener('click', async ()=>{
       if(!selectedDateStr || !confirm('Eintrag wirklich löschen?')) return;
       await deleteDayData(selectedDateStr);
@@ -687,7 +779,7 @@
     document.getElementById('prev-month').addEventListener('click', ()=>{ currentMonth===0? (currentYear--,currentMonth=11) : currentMonth--; renderCalendarView(); });
     document.getElementById('next-month').addEventListener('click', ()=>{ currentMonth===11? (currentYear++,currentMonth=0) : currentMonth++; renderCalendarView(); });
     document.getElementById('today-btn').addEventListener('click', ()=>{ currentMonth=today.getMonth(); currentYear=today.getFullYear(); renderCalendarView(); });
-    document.getElementById('legend-btn').addEventListener('click', ()=>alert('Farben:\n🔴 Rot = Periode\n🟢 Hellgrün = gewöhnlich fruchtbar\n🟢 Kräftiges Grün = erhöht fruchtbar\n🟤 Dunkelgrün = Eisprung\n🔘 Graue Zahl = geringe Wahrscheinlichkeit'));
+    document.getElementById('legend-btn').addEventListener('click', ()=>alert('Farben:\n🔴 Rot = Periode\n🟢 Hellgrün = gewöhnlich fruchtbar\n🟢 Kräftiges Grün = erhöht fruchtbar\n🟤 Dunkelgrün = Eisprung\n⚪ Grau = geringe Wahrscheinlichkeit\n\nKeine Farbe = geringe Wahrscheinlichkeit'));
 
     const panels = ['calendar-panel','history-panel','stats-panel','settings-panel'];
     function showPanel(id) {
