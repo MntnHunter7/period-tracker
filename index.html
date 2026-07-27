@@ -598,19 +598,21 @@
       panels.forEach(p => document.getElementById(p).classList.toggle('active', p===id));
     }
 
+    // *** NUR DIESE FUNKTION WURDE GEÄNDERT ***
     async function renderHistory() {
       const allData = await getAllData();
       const pred = calculatePredictions(allData);
       let earliest = today;
       allData.forEach(e => { const d = parseDate(e.date); if (d < earliest) earliest = d; });
+      // Start: frühester Eintrag oder heute, falls keine Einträge
       let start = new Date(earliest.getFullYear(), earliest.getMonth(), 1);
-      const end = new Date(today.getFullYear(), today.getMonth()+1, 0);
+      // Ende: 12 Monate in der Zukunft (inklusive)
+      const endDate = new Date(today.getFullYear(), today.getMonth() + 12, 1);
       const months = [];
-      while (start <= end) {
+      while (start <= endDate) {
         months.push({ year: start.getFullYear(), month: start.getMonth() });
         start.setMonth(start.getMonth()+1);
       }
-      if (months.length === 0) months.push({ year: today.getFullYear(), month: today.getMonth() });
 
       let html = '';
       months.forEach(({year, month}) => {
