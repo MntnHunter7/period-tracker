@@ -104,8 +104,9 @@
     td.other-month { color: #ccc; }
     td.menstruation { background: #ffcdd2; border-radius: 50%; }
     td.predicted-menstruation { background: #ffebee; border-radius: 50%; }
-    td.fertile { background: #e8f5e9; border-radius: 50%; }
-    td.ovulation { background: #a5d6a7; border-radius: 50%; font-weight: bold; }
+    td.fertile-low { background: #e8f5e9; border-radius: 50%; } /* gewöhnliche Fruchtbarkeit */
+    td.fertile-high { background: #a5d6a7; border-radius: 50%; } /* erhöhte Fruchtbarkeit */
+    td.ovulation { background: #1b5e20; border-radius: 50%; font-weight: bold; color: white; } /* höchste Fruchtbarkeit */
     td.has-data::after {
       content: '';
       display: block;
@@ -126,24 +127,26 @@
     }
     .cycle-day.period-num { color: #e91e63; }
     .cycle-day.fertile-num { color: #2e7d32; }
-    .cycle-day.ovulation-num { color: #1b5e20; }
+    .cycle-day.ovulation-num { color: white; }
     .cycle-day.normal-num { color: #666; }
 
     .legend {
       display: flex;
       justify-content: center;
       flex-wrap: wrap;
-      gap: 12px;
+      gap: 10px;
       padding: 8px 10px;
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       color: #555;
     }
     .legend span { display: inline-flex; align-items: center; gap: 4px; }
     .legend .dot { width: 14px; height: 14px; border-radius: 50%; display: inline-block; }
     .dot.menstruation { background: #ffcdd2; }
     .dot.predicted { background: #ffebee; }
-    .dot.fertile { background: #e8f5e9; }
-    .dot.ovulation { background: #a5d6a7; }
+    .dot.fertile-low { background: #e8f5e9; }
+    .dot.fertile-high { background: #a5d6a7; }
+    .dot.ovulation { background: #1b5e20; }
+
     .prediction-bar {
       text-align: center;
       padding: 10px;
@@ -281,7 +284,8 @@
     <div class="legend" id="color-legend">
       <span><span class="dot menstruation"></span> Periode</span>
       <span><span class="dot predicted"></span> erwartet</span>
-      <span><span class="dot fertile"></span> fruchtbar</span>
+      <span><span class="dot fertile-low"></span> gewöhnlich fruchtbar</span>
+      <span><span class="dot fertile-high"></span> erhöht fruchtbar</span>
       <span><span class="dot ovulation"></span> Eisprung</span>
     </div>
   </div>
@@ -307,6 +311,7 @@
   </div>
 </div>
 
+<!-- Tageseintrag-Modal -->
 <div id="modal" class="modal-overlay hidden">
   <div class="modal">
     <h3 id="modal-date"></h3>
@@ -395,22 +400,35 @@
   </div>
 </div>
 
+<!-- Onboarding mit Periodenerfassung -->
 <div id="onboarding-overlay" class="modal-overlay hidden">
-  <div class="modal">
+  <div class="modal" id="onboarding-content">
     <h3>Willkommen bei PeriTrack 🌸</h3>
-    <div class="onboarding-step"><p><strong>1. Kalender</strong><br>Tippe auf einen Tag, um deine Periode, Symptome oder Stimmung einzutragen. Heute ist <strong>fett umrandet</strong>.</p></div>
-    <div class="onboarding-step"><p><strong>2. Farben & Zyklustag</strong><br>
-      Jeder Zyklus wird von Tag 1 (Periodenbeginn) durchnummeriert.<br>
-      🔴 Rot = Periode | 🟢 Grün = fruchtbar | 🥬 Dunkelgrün = Eisprung<br>
-      🔘 Graue Zahl = übrige Zyklustage.<br>
-      So siehst du sofort, wie lang dein Zyklus ist.</p></div>
-    <div class="onboarding-step"><p><strong>3. Vorhersage</strong><br>Sobald du <strong>zwei Perioden</strong> eingetragen hast, berechnet die App bis zu 12 Monate im Voraus.</p></div>
-    <div class="onboarding-step"><p><strong>4. Symptome & Notizen</strong><br>Einträge wie Krämpfe, Stimmung oder Zervixschleim helfen dir, deinen Körper besser zu verstehen – sie fließen aber nicht in die Berechnung der Vorhersage ein.</p></div>
-    <div class="onboarding-step"><p><strong>5. Optionale Felder</strong><br>In den <em>Einstellungen</em> kannst du erweiterte Einträge aktivieren.</p></div>
-    <button class="btn" id="close-onboarding">Los geht's!</button>
+    <div id="onboarding-step-1" class="onboarding-step">
+      <p>Damit wir deine Zyklen vorhersagen können, brauchen wir das Startdatum deiner <strong>letzten Periode</strong>.</p>
+      <div class="form-group">
+        <label>Datum (TT.MM.JJJJ)</label>
+        <input type="date" id="last-period-date">
+      </div>
+      <button class="btn" id="save-last-period">Weiter</button>
+    </div>
+    <div id="onboarding-step-2" class="onboarding-step hidden">
+      <p>Möchtest du eine <strong>frühere Periode</strong> eingeben? (Für eine genauere Vorhersage)</p>
+      <div class="form-group">
+        <label>Datum (TT.MM.JJJJ)</label>
+        <input type="date" id="previous-period-date">
+      </div>
+      <button class="btn" id="add-previous-period">Hinzufügen & weitere</button>
+      <button class="btn secondary" id="finish-onboarding">Keine weitere, App starten</button>
+    </div>
+    <div id="onboarding-step-3" class="onboarding-step hidden">
+      <p>Super! Deine Daten wurden gespeichert. Die App berechnet jetzt deine Vorhersage.</p>
+      <button class="btn" id="start-app">Los geht's!</button>
+    </div>
   </div>
 </div>
 
+<!-- Readonly Info Modal für Verlauf -->
 <div id="info-modal" class="modal-overlay hidden">
   <div class="modal" id="info-modal-content"></div>
 </div>
@@ -475,6 +493,7 @@
     const advancedFields = document.getElementById('advanced-fields');
     const infoModal = document.getElementById('info-modal');
     const infoModalContent = document.getElementById('info-modal-content');
+    const onboardingOverlay = document.getElementById('onboarding-overlay');
     let selectedDateStr = null;
 
     const getAdvancedMode = () => localStorage.getItem('periTrack_advancedMode') === 'true';
@@ -493,17 +512,17 @@
       [...symptomsContainer.children].forEach(c=>c.classList.toggle('selected', arr.includes(c.textContent)));
     }
 
-    // Berechnung mit VOLLSTÄNDIGER Zyklus-Nummerierung für alle Tage
+    // Berechnung mit Wahrscheinlichkeitsstufen
     function calculatePredictions(allData) {
       const bleedingDays = allData.filter(e=>e.bleeding?.active).sort((a,b)=>a.date.localeCompare(b.date));
-      if (!bleedingDays.length) return { nextStart: null, ovulationDay: null, fertileDays: [], predictedPeriodDays: [], cycleDayMap: {}, medianCycle: null };
+      if (!bleedingDays.length) return { nextStart: null, ovulationDay: null, fertileDays: [], predictedPeriodDays: [], cycleDayMap: {}, fertilityMap: {}, medianCycle: null };
       const startDates = [];
       let prev = null;
       for (let e of bleedingDays) {
         if (!prev || new Date(e.date)-new Date(prev) > 86400000*1.5) startDates.push(e.date);
         prev = e.date;
       }
-      if (startDates.length < 2) return { nextStart: null, ovulationDay: null, fertileDays: [], predictedPeriodDays: [], cycleDayMap: {}, medianCycle: null };
+      if (startDates.length < 2) return { nextStart: null, ovulationDay: null, fertileDays: [], predictedPeriodDays: [], cycleDayMap: {}, fertilityMap: {}, medianCycle: null };
 
       const cycleLengths = [];
       for (let i=1; i<startDates.length; i++) cycleLengths.push((parseDate(startDates[i])-parseDate(startDates[i-1]))/86400000);
@@ -524,27 +543,35 @@
       const allFertileDays = [];
       const allOvulationDays = [];
       const cycleDayMap = {};
+      const fertilityMap = {}; // 'low', 'medium', 'high'
 
       let currentCycleStart = new Date(firstNextStart);
       while (currentCycleStart <= limitDate) {
         const nextStart = new Date(currentCycleStart);
         nextStart.setDate(nextStart.getDate()+medianCycle);
-        // Alle Tage dieses Zyklus durchnummerieren
         let dayNum = 1;
         for (let d = new Date(currentCycleStart); d < nextStart; d.setDate(d.getDate()+1)) {
           const ds = formatDate(d);
           cycleDayMap[ds] = dayNum;
-          // Phasen zuordnen
+          // Bestimme Wahrscheinlichkeit
+          let prob = 'low';
+          const ovulationDayNum = medianCycle - 14 + 1; // z.B. 28 -> Tag 15
           if (dayNum <= medianPeriod) {
+            prob = 'low'; // Periode, keine Fruchtbarkeit
             allPredictedPeriodDays.push(ds);
+          } else if (dayNum === ovulationDayNum) {
+            prob = 'high'; // Eisprung = höchste
+            allOvulationDays.push(ds);
+          } else if (dayNum >= ovulationDayNum - 2 && dayNum <= ovulationDayNum - 1) {
+            prob = 'high'; // 1-2 Tage vor Eisprung = erhöht
+            allFertileDays.push(ds);
+          } else if (dayNum >= ovulationDayNum - 5 && dayNum <= ovulationDayNum + 1) {
+            prob = 'medium'; // restliche fruchtbare Tage = gewöhnlich
+            allFertileDays.push(ds);
           } else {
-            const ovulationDayNum = medianCycle - 14; // z.B. 15 bei 28 Tagen
-            if (dayNum === ovulationDayNum) {
-              allOvulationDays.push(ds);
-            } else if (dayNum >= ovulationDayNum - 5 && dayNum <= ovulationDayNum + 1) {
-              if (dayNum !== ovulationDayNum) allFertileDays.push(ds);
-            }
+            prob = 'low'; // alle anderen Tage = gering
           }
+          fertilityMap[ds] = prob;
           dayNum++;
         }
         currentCycleStart = new Date(nextStart);
@@ -556,6 +583,7 @@
         fertileDays: allFertileDays,
         predictedPeriodDays: allPredictedPeriodDays,
         cycleDayMap,
+        fertilityMap,
         medianCycle,
         allOvulationDays
       };
@@ -602,9 +630,17 @@
           cell.classList.add('has-data');
           if (entry.bleeding?.active) cell.classList.add('menstruation');
         } else {
-          if (pred.predictedPeriodDays.includes(dateStr)) cell.classList.add('predicted-menstruation');
-          else if (pred.allOvulationDays?.includes(dateStr)) cell.classList.add('ovulation');
-          else if (pred.fertileDays.includes(dateStr)) cell.classList.add('fertile');
+          if (pred.predictedPeriodDays.includes(dateStr)) {
+            cell.classList.add('predicted-menstruation');
+          } else if (pred.allOvulationDays?.includes(dateStr)) {
+            cell.classList.add('ovulation');
+          } else if (pred.fertilityMap && pred.fertilityMap[dateStr]) {
+            if (pred.fertilityMap[dateStr] === 'high') {
+              cell.classList.add('fertile-high');
+            } else if (pred.fertilityMap[dateStr] === 'medium') {
+              cell.classList.add('fertile-low');
+            }
+          }
         }
         cell.addEventListener('click', ()=>openDayModal(dateStr));
         row.appendChild(cell);
@@ -685,11 +721,84 @@
     document.getElementById('prev-month').addEventListener('click', ()=>{ currentMonth===0? (currentYear--,currentMonth=11) : currentMonth--; renderCalendarView(); });
     document.getElementById('next-month').addEventListener('click', ()=>{ currentMonth===11? (currentYear++,currentMonth=0) : currentMonth++; renderCalendarView(); });
     document.getElementById('today-btn').addEventListener('click', ()=>{ currentMonth=today.getMonth(); currentYear=today.getFullYear(); renderCalendarView(); });
-    document.getElementById('legend-btn').addEventListener('click', ()=>alert('Farben:\n🔴 Rot = Periode\n🟢 Grün = fruchtbar\n🥬 Dunkelgrün = Eisprung\n🌸 Hellrot = erwartet\n🔘 Graue Zahl = übrige Zyklustage'));
+    document.getElementById('legend-btn').addEventListener('click', ()=>alert('Farben:\n🔴 Rot = Periode\n🟢 Hellgrün = gewöhnlich fruchtbar\n🟢 Dunkleres Grün = erhöht fruchtbar\n🟤 Dunkelgrün = Eisprung (höchste)\n🔘 Graue Zahl = geringe Wahrscheinlichkeit'));
 
+    // Onboarding
     const onboardingOverlay = document.getElementById('onboarding-overlay');
-    if(!localStorage.getItem('periTrack_onboardingDone')) onboardingOverlay.classList.remove('hidden');
-    document.getElementById('close-onboarding').addEventListener('click', ()=>{ onboardingOverlay.classList.add('hidden'); localStorage.setItem('periTrack_onboardingDone','true'); });
+    const step1 = document.getElementById('onboarding-step-1');
+    const step2 = document.getElementById('onboarding-step-2');
+    const step3 = document.getElementById('onboarding-step-3');
+    const lastPeriodInput = document.getElementById('last-period-date');
+    const previousPeriodInput = document.getElementById('previous-period-date');
+
+    function showOnboardingStep(step) {
+      step1.classList.add('hidden');
+      step2.classList.add('hidden');
+      step3.classList.add('hidden');
+      if (step === 1) step1.classList.remove('hidden');
+      else if (step === 2) step2.classList.remove('hidden');
+      else if (step === 3) step3.classList.remove('hidden');
+    }
+
+    async function addPeriodDays(startDateStr) {
+      const start = parseDate(startDateStr);
+      // trage 5 Tage Blutung ein
+      for (let i=0; i<5; i++) {
+        const d = new Date(start);
+        d.setDate(d.getDate()+i);
+        const ds = formatDate(d);
+        const existing = await getDayData(ds);
+        if (!existing) {
+          await saveDayData(ds, { bleeding: { active: true, intensity: 'medium' } });
+        } else if (!existing.bleeding?.active) {
+          existing.bleeding = { active: true, intensity: existing.bleeding?.intensity || 'medium' };
+          await saveDayData(ds, existing);
+        }
+      }
+    }
+
+    document.getElementById('save-last-period').addEventListener('click', async () => {
+      const val = lastPeriodInput.value;
+      if (!val) { alert('Bitte Datum auswählen'); return; }
+      await addPeriodDays(val);
+      showOnboardingStep(2);
+    });
+
+    document.getElementById('add-previous-period').addEventListener('click', async () => {
+      const val = previousPeriodInput.value;
+      if (!val) { alert('Bitte Datum auswählen'); return; }
+      await addPeriodDays(val);
+      previousPeriodInput.value = '';
+      // nochmal gleicher Schritt, um weitere hinzuzufügen
+    });
+
+    document.getElementById('finish-onboarding').addEventListener('click', async () => {
+      // optional noch letzte Eingabe übernehmen, falls nicht leer
+      const val = previousPeriodInput.value;
+      if (val) await addPeriodDays(val);
+      showOnboardingStep(3);
+    });
+
+    document.getElementById('start-app').addEventListener('click', () => {
+      onboardingOverlay.classList.add('hidden');
+      localStorage.setItem('periTrack_onboardingDone', 'true');
+      renderCalendarView();
+    });
+
+    // Prüfen, ob Onboarding nötig
+    if(!localStorage.getItem('periTrack_onboardingDone')) {
+      onboardingOverlay.classList.remove('hidden');
+      showOnboardingStep(1);
+    } else {
+      // Altes Info-Onboarding falls gewünscht (hier nicht mehr nötig, kann aber über Einstellungen aufgerufen werden)
+    }
+
+    // Einstellungen: Onboarding erneut starten
+    window.restartOnboarding = () => {
+      localStorage.removeItem('periTrack_onboardingDone');
+      onboardingOverlay.classList.remove('hidden');
+      showOnboardingStep(1);
+    };
 
     const panels = ['calendar-panel','history-panel','stats-panel','settings-panel'];
     function showPanel(id) {
@@ -722,8 +831,11 @@
           const entry = allData.find(e=>e.date===dateStr);
           if (entry?.bleeding?.active) cls = 'menstruation';
           else if (pred.predictedPeriodDays.includes(dateStr)) cls = 'predicted-menstruation';
-          if (pred.allOvulationDays?.includes(dateStr)) cls = 'ovulation';
-          else if (pred.fertileDays.includes(dateStr) && !cls) cls = 'fertile';
+          else if (pred.allOvulationDays?.includes(dateStr)) cls = 'ovulation';
+          else if (pred.fertilityMap && pred.fertilityMap[dateStr]) {
+            if (pred.fertilityMap[dateStr] === 'high') cls = 'fertile-high';
+            else if (pred.fertilityMap[dateStr] === 'medium') cls = 'fertile-low';
+          }
           if (dateStr===todayStr) cls += ' today';
 
           let content = d;
@@ -731,7 +843,7 @@
             let numClass = 'normal-num';
             if (pred.predictedPeriodDays.includes(dateStr)) numClass = 'period-num';
             else if (pred.allOvulationDays.includes(dateStr)) numClass = 'ovulation-num';
-            else if (pred.fertileDays.includes(dateStr)) numClass = 'fertile-num';
+            else if (pred.fertilityMap[dateStr] === 'high' || pred.fertilityMap[dateStr] === 'medium') numClass = 'fertile-num';
             content = `<span>${d}</span><span class="cycle-day ${numClass}">${pred.cycleDayMap[dateStr]}</span>`;
           }
           row += `<td class="${cls}" data-date="${dateStr}">${content}</td>`;
@@ -793,7 +905,7 @@
         <button class="btn" id="export-data">📤 Daten exportieren</button>
         <button class="btn secondary" id="import-data">📥 Daten importieren</button>
         <input type="file" id="import-file" accept=".json" class="hidden">
-        <button class="btn secondary" id="restart-onboarding">👋 Onboarding erneut</button>`;
+        <button class="btn secondary" id="restart-onboarding-btn">👋 Onboarding erneut</button>`;
       document.getElementById('advanced-toggle').addEventListener('change', e=>{ setAdvancedMode(e.target.checked); applyAdvancedMode(); });
       document.getElementById('export-data').addEventListener('click', async ()=>{
         const all = await getAllData();
@@ -810,7 +922,9 @@
           else alert('Ungültiges Format.');
         } catch(ex) { alert('Fehler beim Import.'); }
       });
-      document.getElementById('restart-onboarding').addEventListener('click', ()=>{ localStorage.removeItem('periTrack_onboardingDone'); onboardingOverlay.classList.remove('hidden'); });
+      document.getElementById('restart-onboarding-btn').addEventListener('click', () => {
+        window.restartOnboarding();
+      });
     }
 
     function switchTab(tab) {
@@ -827,7 +941,10 @@
     document.getElementById('tab-stats').addEventListener('click', ()=>switchTab('stats'));
     document.getElementById('tab-settings').addEventListener('click', ()=>switchTab('settings'));
 
-    openDB().then(() => { renderCalendarView(); applyAdvancedMode(); });
+    openDB().then(() => {
+      renderCalendarView();
+      applyAdvancedMode();
+    });
 
     if ('serviceWorker' in navigator) window.addEventListener('load', ()=> navigator.serviceWorker.register('sw.js').catch(()=>{}));
   })();
