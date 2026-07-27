@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>PeriTrack</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="PeriTrack">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f0f6;
+      color: #333;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+    #app {
+      width: 100%;
+      max-width: 500px;
+      background: white;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 0 20px rgba(0,0,0,0.05);
+    }
+    header {
+      padding: 16px 16px 8px;
+      text-align: center;
+      background: #e91e63;
+      color: white;
+      border-radius: 0 0 20px 20px;
+    }
+    header h1 { font-size: 1.4rem; font-weight: 600; }
+    .calendar-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 16px;
+      background: #fff;
+    }
+    .calendar-nav button {
+      background: none;
+      border: 1px solid #ddd;
+      padding: 8px 12px;
+      border-radius: 20px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    .month-year { font-weight: 600; font-size: 1.1rem; }
+    table.calendar {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+    th {
+      text-align: center;
+      padding: 8px 0;
+      font-weight: 500;
+      font-size: 0.8rem;
+      color: #888;
+    }
+    td {
+      text-align: center;
+      vertical-align: middle;
+      height: 44px;
+      cursor: pointer;
+      position: relative;
+      border-radius: 50%;
+      transition: background 0.2s;
+    }
+    td.today { font-weight: bold; }
+    td.other-month { color: #ccc; }
+    td.menstruation { background: #ffcdd2; border-radius: 50%; }
+    td.predicted-menstruation { background: #ffebee; border-radius: 50%; }
+    td.fertile { background: #e8f5e9; border-radius: 50%; }
+    td.ovulation { background: #a5d6a7; border-radius: 50%; font-weight: bold; }
+    td.has-data::after {
+      content: '';
+      display: block;
+      width: 6px;
+      height: 6px;
+      background: #e91e63;
+      border-radius: 50%;
+      margin: 2px auto 0;
+    }
+    .bottom-nav {
+      display: flex;
+      justify-content: space-around;
+      padding: 12px 0;
+      background: white;
+      border-top: 1px solid #eee;
+      margin-top: auto;
+    }
+    .bottom-nav button {
+      background: none;
+      border: none;
+      font-size: 1rem;
+      color: #e91e63;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10;
+      padding: 16px;
+    }
+    .modal {
+      background: white;
+      border-radius: 20px;
+      padding: 20px;
+      width: 100%;
+      max-width: 400px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .modal h3 { margin-bottom: 12px; }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 0.9rem; margin-bottom: 4px; font-weight: 500; }
+    .form-group select, .form-group input, .form-group textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      font-size: 1rem;
+    }
+    .checkbox-group { display: flex; flex-wrap: wrap; gap: 8px; }
+    .checkbox-group label { font-weight: normal; display: flex; align-items: center; gap: 4px; }
+    .btn {
+      background: #e91e63;
+      color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 20px;
+      width: 100%;
+      font-size: 1rem;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    .btn.secondary { background: #eee; color: #333; }
+    .stats { padding: 20px; }
+    .stats p { margin: 8px 0; }
+    .hidden { display: none !important; }
+    .prediction-bar {
+      text-align: center;
+      padding: 8px;
+      background: #fce4ec;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>🌸 PeriTrack</h1>
+  </header>
+  <div id="prediction-bar" class="prediction-bar"></div>
+  <div class="calendar-nav">
+    <button id="prev-month">←</button>
+    <span class="month-year" id="month-year"></span>
+    <button id="next-month">→</button>
+  </div>
+  <table class="calendar" id="calendar-table">
+    <thead><tr><th>Mo</th><th>Di</th><th>Mi</th><th>Do</th><th>Fr</th><th>Sa</th><th>So</th></tr></thead>
+    <tbody id="calendar-body"></tbody>
+  </table>
+  <div class="bottom-nav">
+    <button id="tab-calendar">📅 Kalender</button>
+    <button id="tab-today">✏️ Heute</button>
+    <button id="tab-stats">📊 Statistik</button>
+    <button id="tab-settings">⚙️ Einstellungen</button>
+  </div>
+</div>
+
+<div id="modal" class="modal-overlay hidden">
+  <div class="modal">
+    <h3 id="modal-date"></h3>
+    <div class="form-group">
+      <label><input type="checkbox" id="bleeding-active"> Periode (Blutung)</label>
+      <select id="bleeding-intensity" class="hidden">
+        <option value="light">Leicht</option>
+        <option value="medium" selected>Mittel</option>
+        <option value="heavy">Stark</option>
+        <option value="spotting">Schmierblutung</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Symptome</label>
+      <div class="checkbox-group" id="symptoms-list"></div>
+    </div>
+    <div class="form-group">
+      <label>Stimmung</label>
+      <select id="mood">
+        <option value="">--</option>
+        <option value="happy">Glücklich</option>
+        <option value="irritable">Gereizt</option>
+        <option value="anxious">Ängstlich</option>
+        <option value="sad">Traurig</option>
+        <option value="tired">Energielos</option>
+        <option value="energetic">Motiviert</option>
+        <option value="emotional">Emotional</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Zervixschleim</label>
+      <select id="cervical-mucus">
+        <option value="">--</option>
+        <option value="dry">Trocken</option>
+        <option value="creamy">Cremig</option>
+        <option value="watery">Wässrig</option>
+        <option value="eggwhite">Spinnbar (Eiklar)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Basaltemperatur (°C)</label>
+      <input type="number" id="temperature" step="0.1" placeholder="z.B. 36.5">
+    </div>
+    <div class="form-group">
+      <label>Ovulationstest</label>
+      <select id="ovulation-test">
+        <option value="">--</option>
+        <option value="positive">Positiv</option>
+        <option value="negative">Negativ</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Geschlechtsverkehr</label>
+      <select id="sex">
+        <option value="">--</option>
+        <option value="protected">Geschützt</option>
+        <option value="unprotected">Ungeschützt</option>
+        <option value="none">Kein</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Verhütung</label>
+      <select id="contraception">
+        <option value="">--</option>
+        <option value="pill">Pille</option>
+        <option value="iud">Spirale</option>
+        <option value="condom">Kondom</option>
+        <option value="nfp">NFP</option>
+        <option value="implant">Implantat</option>
+        <option value="ring">Ring</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Notiz</label>
+      <textarea id="note" rows="2" placeholder="Freitext..."></textarea>
+    </div>
+    <div class="form-group">
+      <label>Tags (durch Komma getrennt)</label>
+      <input type="text" id="custom-tags" placeholder="z.B. Stress, Sport">
+    </div>
+    <button class="btn" id="save-day">Speichern</button>
+    <button class="btn secondary" id="delete-day">Eintrag löschen</button>
+    <button class="btn secondary" id="close-modal">Abbrechen</button>
+  </div>
+</div>
+
+<script>
+  (function() {
+    // IndexedDB Setup
+    const DB_NAME = 'periTrackDB';
+    const STORE_NAME = 'days';
+    let db;
+
+    function openDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, 1);
+        request.onupgradeneeded = (e) => {
+          db = e.target.result;
+          if (!db.objectStoreNames.contains(STORE_NAME)) {
+            db.createObjectStore(STORE_NAME, { keyPath: 'date' });
+          }
+        };
+        request.onsuccess = (e) => {
+          db = e.target.result;
+          resolve(db);
+        };
+        request.onerror = (e) => reject(e.target.error);
+      });
+    }
+
+    function getDayData(dateStr) {
+      return new Promise((resolve) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const req = store.get(dateStr);
+        req.onsuccess = () => resolve(req.result || null);
+      });
+    }
+
+    function saveDayData(dateStr, data) {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        store.put({ date: dateStr, ...data });
+        tx.oncomplete = resolve;
+        tx.onerror = reject;
+      });
+    }
+
+    function deleteDayData(dateStr) {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        store.delete(dateStr);
+        tx.oncomplete = resolve;
+        tx.onerror = reject;
+      });
+    }
+
+    function getAllData() {
+      return new Promise((resolve) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const req = store.getAll();
+        req.onsuccess = () => resolve(req.result || []);
+      });
+    }
+
+    // Hilfsfunktionen
+    function formatDate(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2,'0');
+      const d = String(date.getDate()).padStart(2,'0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function parseDate(str) {
+      const [y,m,d] = str.split('-').map(Number);
+      return new Date(y, m-1, d);
+    }
+
+    function getDaysInMonth(year, month) {
+      return new Date(year, month+1, 0).getDate();
+    }
+
+    function getFirstDayOfWeek(year, month) {
+      let day = new Date(year, month, 1).getDay();
+      return day === 0 ? 6 : day-1; // Montag=0
+    }
+
+    // Kalender State
+    let currentMonth, currentYear;
+    const today = new Date();
+    const todayStr = formatDate(today);
+
+    function setCurrentMonth(year, month) {
+      currentYear = year;
+      currentMonth = month;
+      renderCalendar();
+      renderPredictionBar();
+    }
+
+    // UI-Elemente
+    const monthYearEl = document.getElementById('month-year');
+    const calendarBody = document.getElementById('calendar-body');
+    const modal = document.getElementById('modal');
+    const modalDateEl = document.getElementById('modal-date');
+    const predictionBar = document.getElementById('prediction-bar');
+    let selectedDateStr = null;
+
+    // Symptom-Checkboxen
+    const symptomOptions = [
+      'Krämpfe','Kopfschmerzen','Brustspannen','Blähungen','Akne',
+      'Müdigkeit','Rückenschmerzen','Übelkeit','Durchfall','Heißhunger','Schlaflosigkeit'
+    ];
+    const symptomsContainer = document.getElementById('symptoms-list');
+    symptomOptions.forEach(s => {
+      const lbl = document.createElement('label');
+      lbl.innerHTML = `<input type="checkbox" value="${s}"> ${s}`;
+      symptomsContainer.appendChild(lbl);
+    });
+
+    function getSymptomCheckboxes() {
+      return Array.from(symptomsContainer.querySelectorAll('input[type=checkbox]:checked')).map(cb => cb.value);
+    }
+    function setSymptomCheckboxes(values) {
+      symptomsContainer.querySelectorAll('input[type=checkbox]').forEach(cb => {
+        cb.checked = values.includes(cb.value);
+      });
+    }
+
+    // Kalender rendern
+    async function renderCalendar() {
+      monthYearEl.textContent = new Date(currentYear, currentMonth).toLocaleDateString('de-DE', { month:'long', year:'numeric' });
+      const daysInMonth = getDaysInMonth(currentYear, currentMonth);
+      const firstDay = getFirstDayOfWeek(currentYear, currentMonth);
+      calendarBody.innerHTML = '';
+      let row = document.createElement('tr');
+      // Leere Zellen vor Monatsbeginn
+      for (let i=0; i<firstDay; i++) {
+        const cell = document.createElement('td');
+        cell.classList.add('other-month');
+        row.appendChild(cell);
+      }
+      // Alle Daten aus DB für Vorhersage sammeln
+      const allData = await getAllData();
+      const predictions = calculatePredictions(allData);
+
+      for (let d=1; d<=daysInMonth; d++) {
+        if ((firstDay + d - 1) % 7 === 0 && row.children.length > 0) {
+          calendarBody.appendChild(row);
+          row = document.createElement('tr');
+        }
+        const date = new Date(currentYear, currentMonth, d);
+        const dateStr = formatDate(date);
+        const cell = document.createElement('td');
+        cell.textContent = d;
+        cell.dataset.date = dateStr;
+
+        if (dateStr === todayStr) cell.classList.add('today');
+
+        // Daten aus DB prüfen
+        const dayData = allData.find(entry => entry.date === dateStr);
+        if (dayData) {
+          cell.classList.add('has-data');
+          if (dayData.bleeding && dayData.bleeding.active) {
+            cell.classList.add('menstruation');
+          }
+        }
+
+        // Vorhersage-Klassen (nur wenn keine echten Blutungsdaten)
+        if (!dayData || !(dayData.bleeding && dayData.bleeding.active)) {
+          if (predictions) {
+            if (predictions.predictedPeriodDays.includes(dateStr)) {
+              cell.classList.add('predicted-menstruation');
+            }
+            if (predictions.ovulationDay === dateStr) {
+              cell.classList.add('ovulation');
+            } else if (predictions.fertileDays.includes(dateStr)) {
+              cell.classList.add('fertile');
+            }
+          }
+        }
+
+        cell.addEventListener('click', () => openDayModal(dateStr));
+        row.appendChild(cell);
+      }
+      // Restliche Zellen bis Samstag auffüllen
+      while (row.children.length < 7) {
+        const cell = document.createElement('td');
+        cell.classList.add('other-month');
+        row.appendChild(cell);
+      }
+      calendarBody.appendChild(row);
+    }
+
+    function calculatePredictions(allData) {
+      // Startdaten der Perioden finden
+      const startDates = [];
+      const sorted = allData.filter(e => e.bleeding && e.bleeding.active).sort((a,b) => a.date.localeCompare(b.date));
+      if (sorted.length === 0) return null;
+      let prevDate = null;
+      for (let entry of sorted) {
+        const curr = entry.date;
+        if (!prevDate || new Date(curr) - new Date(prevDate) > 86400000*1.5) { // Lücke >1 Tag
+          startDates.push(curr);
+        }
+        prevDate = curr;
+      }
+      if (startDates.length < 2) return null; // mind. 2 Starts für Zykluslänge
+      // Zykluslängen
+      const cycleLengths = [];
+      for (let i=1; i<startDates.length; i++) {
+        const diff = (parseDate(startDates[i]) - parseDate(startDates[i-1])) / 86400000;
+        cycleLengths.push(diff);
+      }
+      const last6 = cycleLengths.slice(-6);
+      last6.sort((a,b)=>a-b);
+      let medianCycle;
+      if (last6.length % 2 === 1) {
+        medianCycle = last6[Math.floor(last6.length/2)];
+      } else {
+        const mid = last6.length/2;
+        medianCycle = Math.round((last6[mid-1] + last6[mid]) / 2);
+      }
+      const nextStart = new Date(parseDate(startDates[startDates.length-1]));
+      nextStart.setDate(nextStart.getDate() + medianCycle);
+      // Periodenlänge Median
+      const periodLengths = [];
+      for (let i=0; i<startDates.length; i++) {
+        const start = parseDate(startDates[i]);
+        const endDate = new Date(start);
+        // zähle aufeinanderfolgende Tage mit Blutung ab start
+        let count = 0;
+        let check = new Date(start);
+        while (allData.some(e => e.date === formatDate(check) && e.bleeding && e.bleeding.active)) {
+          count++;
+          check.setDate(check.getDate()+1);
+        }
+        periodLengths.push(count);
+      }
+      periodLengths.sort((a,b)=>a-b);
+      let medianPeriodLength = periodLengths[Math.floor(periodLengths.length/2)] || 5;
+      // Eisprung = nächster Start - 14
+      const ovulationDate = new Date(nextStart);
+      ovulationDate.setDate(ovulationDate.getDate() - 14);
+      const fertileStart = new Date(ovulationDate);
+      fertileStart.setDate(fertileStart.getDate() - 5);
+      const fertileEnd = new Date(ovulationDate);
+      fertileEnd.setDate(fertileEnd.getDate() + 1);
+      // Periodenvorhersage Tage
+      const predictedPeriodDays = [];
+      for (let i=0; i<medianPeriodLength; i++) {
+        const day = new Date(nextStart);
+        day.setDate(day.getDate() + i);
+        predictedPeriodDays.push(formatDate(day));
+      }
+      const fertileDays = [];
+      for (let d = new Date(fertileStart); d <= fertileEnd; d.setDate(d.getDate()+1)) {
+        if (formatDate(d) !== formatDate(ovulationDate)) {
+          fertileDays.push(formatDate(d));
+        }
+      }
+      return {
+        nextStart: formatDate(nextStart),
+        ovulationDay: formatDate(ovulationDate),
+        fertileDays,
+        predictedPeriodDays,
+        medianCycle
+      };
+    }
+
+    function renderPredictionBar() {
+      getAllData().then(allData => {
+        const pred = calculatePredictions(allData);
+        if (!pred) {
+          predictionBar.textContent = 'Trage mindestens zwei Perioden ein, um Vorhersagen zu erhalten.';
+          return;
+        }
+        const next = parseDate(pred.nextStart);
+        const diff = Math.round((next - today) / 86400000);
+        let msg = `Nächste Periode voraussichtlich am ${next.toLocaleDateString('de-DE')}`;
+        if (diff === 0) msg = 'Heute beginnt voraussichtlich deine Periode.';
+        else if (diff === 1) msg = 'Morgen beginnt voraussichtlich deine Periode.';
+        else if (diff > 0) msg += ` (in ${diff} Tagen)`;
+        else msg += ` (vor ${Math.abs(diff)} Tagen)`;
+        predictionBar.textContent = msg;
+      });
+    }
+
+    // Modal
+    function openDayModal(dateStr) {
+      selectedDateStr = dateStr;
+      modalDateEl.textContent = new Date(parseDate(dateStr)).toLocaleDateString('de-DE', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+      getDayData(dateStr).then(data => {
+        document.getElementById('bleeding-active').checked = data?.bleeding?.active || false;
+        document.getElementById('bleeding-intensity').value = data?.bleeding?.intensity || 'medium';
+        document.getElementById('bleeding-intensity').classList.toggle('hidden', !data?.bleeding?.active);
+        setSymptomCheckboxes(data?.symptoms || []);
+        document.getElementById('mood').value = data?.mood || '';
+        document.getElementById('cervical-mucus').value = data?.cervicalMucus || '';
+        document.getElementById('temperature').value = data?.temperature || '';
+        document.getElementById('ovulation-test').value = data?.ovulationTest || '';
+        document.getElementById('sex').value = data?.sex || '';
+        document.getElementById('contraception').value = data?.contraception || '';
+        document.getElementById('note').value = data?.note || '';
+        document.getElementById('custom-tags').value = (data?.customTags || []).join(', ');
+      });
+      modal.classList.remove('hidden');
+    }
+
+    function closeModal() {
+      modal.classList.add('hidden');
+      selectedDateStr = null;
+    }
+
+    document.getElementById('bleeding-active').addEventListener('change', function() {
+      document.getElementById('bleeding-intensity').classList.toggle('hidden', !this.checked);
+    });
+
+    document.getElementById('save-day').addEventListener('click', async () => {
+      if (!selectedDateStr) return;
+      const data = {
+        bleeding: {
+          active: document.getElementById('bleeding-active').checked,
+          intensity: document.getElementById('bleeding-intensity').value
+        },
+        symptoms: getSymptomCheckboxes(),
+        mood: document.getElementById('mood').value || undefined,
+        cervicalMucus: document.getElementById('cervical-mucus').value || undefined,
+        temperature: document.getElementById('temperature').value ? parseFloat(document.getElementById('temperature').value) : undefined,
+        ovulationTest: document.getElementById('ovulation-test').value || undefined,
+        sex: document.getElementById('sex').value || undefined,
+        contraception: document.getElementById('contraception').value || undefined,
+        note: document.getElementById('note').value || undefined,
+        customTags: document.getElementById('custom-tags').value.split(',').map(t => t.trim()).filter(t => t)
+      };
+      await saveDayData(selectedDateStr, data);
+      closeModal();
+      renderCalendar();
+      renderPredictionBar();
+    });
+
+    document.getElementById('delete-day').addEventListener('click', async () => {
+      if (!selectedDateStr) return;
+      if (confirm('Eintrag wirklich löschen?')) {
+        await deleteDayData(selectedDateStr);
+        closeModal();
+        renderCalendar();
+        renderPredictionBar();
+      }
+    });
+
+    document.getElementById('close-modal').addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+    // Navigation
+    document.getElementById('prev-month').addEventListener('click', () => {
+      if (currentMonth === 0) setCurrentMonth(currentYear-1, 11);
+      else setCurrentMonth(currentYear, currentMonth-1);
+    });
+    document.getElementById('next-month').addEventListener('click', () => {
+      if (currentMonth === 11) setCurrentMonth(currentYear+1, 0);
+      else setCurrentMonth(currentYear, currentMonth+1);
+    });
+
+    // Tabs
+    document.getElementById('tab-calendar').addEventListener('click', () => {
+      setCurrentMonth(today.getFullYear(), today.getMonth());
+    });
+    document.getElementById('tab-today').addEventListener('click', () => {
+      openDayModal(todayStr);
+    });
+    document.getElementById('tab-stats').addEventListener('click', async () => {
+      const allData = await getAllData();
+      const pred = calculatePredictions(allData);
+      let statsHtml = '<div class="stats"><h3>Statistik</h3>';
+      if (pred) {
+        statsHtml += `<p>📏 Vorhersage Zykluslänge: ${pred.medianCycle} Tage</p>`;
+        statsHtml += `<p>🩸 Nächste Periode: ${new Date(parseDate(pred.nextStart)).toLocaleDateString('de-DE')}</p>`;
+      }
+      const startDates = allData.filter(e => e.bleeding?.active).map(e => e.date).sort();
+      if (startDates.length) {
+        statsHtml += `<p>🗓️ Aufgezeichnete Periodenstarts: ${startDates.length}</p>`;
+        statsHtml += `<p>Letzte: ${new Date(parseDate(startDates[startDates.length-1])).toLocaleDateString('de-DE')}</p>`;
+      }
+      statsHtml += '</div>';
+      document.getElementById('prediction-bar').innerHTML = '';
+      document.getElementById('calendar-body').innerHTML = '';
+      document.getElementById('month-year').textContent = 'Statistik';
+      document.getElementById('calendar-body').insertAdjacentHTML('beforeend', statsHtml);
+    });
+    document.getElementById('tab-settings').addEventListener('click', () => {
+      const settingsHtml = `
+        <div class="stats">
+          <h3>Einstellungen</h3>
+          <button class="btn" id="export-data">📤 Daten exportieren (JSON)</button>
+          <button class="btn secondary" id="import-data">📥 Daten importieren</button>
+          <input type="file" id="import-file" accept=".json" class="hidden">
+        </div>`;
+      document.getElementById('calendar-body').innerHTML = settingsHtml;
+      document.getElementById('month-year').textContent = 'Einstellungen';
+      document.getElementById('prediction-bar').textContent = '';
+      document.getElementById('export-data').addEventListener('click', async () => {
+        const all = await getAllData();
+        const blob = new Blob([JSON.stringify(all, null, 2)], {type: 'application/json'});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'peritrack_backup.json';
+        a.click();
+      });
+      document.getElementById('import-data').addEventListener('click', () => {
+        document.getElementById('import-file').click();
+      });
+      document.getElementById('import-file').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const text = await file.text();
+        const data = JSON.parse(text);
+        if (Array.isArray(data)) {
+          for (let item of data) {
+            await saveDayData(item.date, item);
+          }
+          alert('Import erfolgreich!');
+          setCurrentMonth(today.getFullYear(), today.getMonth());
+        } else {
+          alert('Ungültiges Format.');
+        }
+      });
+    });
+
+    // Initialisierung
+    openDB().then(() => {
+      setCurrentMonth(today.getFullYear(), today.getMonth());
+    });
+
+    // Service Worker registrieren
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(() => {});
+      });
+    }
+  })();
+</script>
+</body>
+</html>
