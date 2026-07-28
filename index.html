@@ -173,17 +173,17 @@
     .bottom-nav button {
       background: none;
       border: none;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       color: #e91e63;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 4px;
+      gap: 2px;
       cursor: pointer;
       min-height: 44px;
-      min-width: 60px;
+      min-width: 50px;
     }
-    .bottom-nav button .emoji { font-size: 1.4rem; }
+    .bottom-nav button .emoji { font-size: 1.2rem; }
 
     .panel { display: none; flex: 1; overflow-y: auto; }
     .panel.active { display: flex; flex-direction: column; }
@@ -261,9 +261,9 @@
     .detail-row { display: flex; margin-bottom: 4px; }
     .detail-label { font-weight: 500; width: 110px; }
 
-    .chart-container { padding: 10px; background: #fff; border-radius: 10px; margin: 10px 0; }
-    .chart-container select { width: 100%; margin-bottom: 10px; }
-    canvas { display: block; width: 100%; height: auto; background: #fff; border-radius: 10px; }
+    .chart-container { padding: 16px; }
+    .chart-container select { width: 100%; margin-bottom: 16px; padding: 10px; border-radius: 10px; border: 1px solid #ddd; }
+    canvas { display: block; width: 100%; height: auto; background: #fff; border-radius: 10px; border: 1px solid #eee; }
   </style>
 </head>
 <body>
@@ -303,16 +303,24 @@
     <div class="stats" id="stats-content"></div>
   </div>
 
+  <div id="temp-panel" class="panel">
+    <div class="stats" id="temp-content">
+      <h3>🌡️ Basaltemperatur</h3>
+      <p>Keine Temperaturdaten vorhanden. Aktiviere in den Einstellungen die erweiterten Einträge und trage deine Aufwachtemperatur ein.</p>
+    </div>
+  </div>
+
   <div id="settings-panel" class="panel">
     <div class="stats" id="settings-content"></div>
   </div>
 
   <div class="bottom-nav">
-    <button id="tab-calendar"><span class="emoji">📅</span> Kalender</button>
+    <button id="tab-calendar"><span class="emoji">📅</span> Kal.</button>
     <button id="tab-today"><span class="emoji">✏️</span> Heute</button>
     <button id="tab-history"><span class="emoji">🗂️</span> Verlauf</button>
-    <button id="tab-stats"><span class="emoji">📊</span> Statistik</button>
-    <button id="tab-settings"><span class="emoji">⚙️</span> Einstellungen</button>
+    <button id="tab-stats"><span class="emoji">📊</span> Stat.</button>
+    <button id="tab-temp"><span class="emoji">🌡️</span> Temp</button>
+    <button id="tab-settings"><span class="emoji">⚙️</span> Einst.</button>
   </div>
 </div>
 
@@ -778,7 +786,7 @@
     document.getElementById('today-btn').addEventListener('click', ()=>{ currentMonth=today.getMonth(); currentYear=today.getFullYear(); renderCalendarView(); });
     document.getElementById('legend-btn').addEventListener('click', ()=>alert('Farben:\n🔴 Rot = Periode\n🟢 Hellgrün = gewöhnlich fruchtbar\n🟢 Kräftiges Grün = erhöht fruchtbar\n🟤 Dunkelgrün = Eisprung\n⚪ Grau = geringe Wahrscheinlichkeit'));
 
-    const panels = ['calendar-panel','history-panel','stats-panel','settings-panel'];
+    const panels = ['calendar-panel','history-panel','stats-panel','temp-panel','settings-panel'];
     function showPanel(id) {
       panels.forEach(p => document.getElementById(p).classList.toggle('active', p===id));
     }
@@ -862,11 +870,10 @@
     }
     infoModal.addEventListener('click', e=>{ if(e.target===infoModal) infoModal.classList.add('hidden'); });
 
-    // ---------- TEMPERATUR-DIAGRAMM ----------
+    // ---------- TEMPERATUR-DIAGRAMM (eigenes Panel) ----------
     function getTemperatureChart(allData) {
-      // Ermittle alle Zyklen-Startdaten aus den Blutungsdaten
       const bleedingDays = allData.filter(e=>e.bleeding?.active).sort((a,b)=>a.date.localeCompare(b.date));
-      if (bleedingDays.length < 2) return null; // zu wenig Daten
+      if (bleedingDays.length < 2) return null;
       const startDates = [];
       let prev = null;
       for (let e of bleedingDays) {
@@ -875,11 +882,10 @@
       }
       if (startDates.length < 2) return null;
 
-      // Für jeden Zyklus (außer dem aktuellen, der noch nicht abgeschlossen sein könnte) die Temperaturdaten sammeln
       const cycles = [];
       for (let i = 0; i < startDates.length - 1; i++) {
         const start = startDates[i];
-        const end = startDates[i+1]; // Ende ist der Tag vor dem nächsten Start
+        const end = startDates[i+1];
         const cycleDays = [];
         let d = new Date(parseDate(start));
         const endDate = new Date(parseDate(end));
@@ -893,11 +899,8 @@
           d.setDate(d.getDate()+1);
           dayNum++;
         }
-        if (cycleDays.length >= 6) { // mind. 6 Messwerte für NFP
-          cycles.push({ start, days: cycleDays });
-        }
+        if (cycleDays.length >= 6) cycles.push({ start, days: cycleDays });
       }
-      // Auch den aktuellen (letzten) Zyklus betrachten, wenn er genügend Messwerte hat
       if (startDates.length > 0) {
         const lastStart = startDates[startDates.length-1];
         const d = new Date(parseDate(lastStart));
@@ -912,33 +915,24 @@
           d.setDate(d.getDate()+1);
           dayNum++;
         }
-        if (cycleDays.length >= 6) {
-          cycles.push({ start: lastStart, days: cycleDays });
-        }
+        if (cycleDays.length >= 6) cycles.push({ start: lastStart, days: cycleDays });
       }
-      if (cycles.length === 0) return null;
-
-      // Nehme den letzten Zyklus als Default
-      const defaultCycle = cycles[cycles.length-1];
-      return { cycles, defaultCycle };
+      return cycles.length ? cycles : null;
     }
 
     function analyzeNFP(cycle) {
-      const days = cycle.days; // Array von {day, temp}
+      const days = cycle.days;
       if (days.length < 6) return null;
-      // Tieflage: erste 6 gültige Werte (die ersten 6 Tage mit Messungen)
       const firstSix = days.slice(0, 6).map(d=>d.temp);
-      const ht = Math.max(...firstSix); // höchste Tieflagetemperatur
-      // Suche ab Tag 7 nach 3 aufeinanderfolgenden Tagen mit Temperatur > ht + 0.2
+      const ht = Math.max(...firstSix);
       let highStart = -1;
       for (let i = 6; i < days.length - 2; i++) {
         if (days[i].temp > ht + 0.2 && days[i+1].temp > ht + 0.2 && days[i+2].temp > ht + 0.2) {
-          highStart = i; // erster Tag der Hochlage
+          highStart = i;
           break;
         }
       }
       if (highStart === -1) return { ht, highStart: null, highAvg: null };
-      // Hochlagen-Durchschnitt (erste 3 Werte der Hochlage)
       const highTemps = days.slice(highStart, highStart+3).map(d=>d.temp);
       const highAvg = highTemps.reduce((a,b)=>a+b,0) / 3;
       return { ht, highStart, highAvg };
@@ -954,7 +948,6 @@
 
       ctx.clearRect(0,0,width,height);
       
-      // Achsen
       const days = cycle.days;
       const maxDay = Math.max(days[days.length-1].day, 30);
       const temps = days.map(d=>d.temp);
@@ -964,30 +957,25 @@
       function x(day) { return padding.left + (day-1) / (maxDay-1) * chartW; }
       function y(temp) { return padding.top + chartH - (temp - minTemp) / (maxTemp - minTemp) * chartH; }
 
-      // Hintergrund: Tieflage hellblau, Hochlage hellgrün
       if (analysis && analysis.highStart) {
         const xStart = x(1);
         const xHigh = x(analysis.highStart + 1);
         ctx.fillStyle = 'rgba(173,216,230,0.3)';
         ctx.fillRect(xStart, padding.top, xHigh - xStart, chartH);
-        const xEnd = x(maxDay);
         ctx.fillStyle = 'rgba(144,238,144,0.3)';
-        ctx.fillRect(xHigh, padding.top, xEnd - xHigh, chartH);
+        ctx.fillRect(xHigh, padding.top, x(maxDay) - xHigh, chartH);
       }
 
-      // X-Achse
       ctx.beginPath();
       ctx.strokeStyle = '#ccc';
       ctx.moveTo(padding.left, padding.top + chartH);
       ctx.lineTo(padding.left + chartW, padding.top + chartH);
       ctx.stroke();
-      // Y-Achse
       ctx.beginPath();
       ctx.moveTo(padding.left, padding.top);
       ctx.lineTo(padding.left, padding.top + chartH);
       ctx.stroke();
 
-      // Y-Beschriftungen
       ctx.fillStyle = '#666';
       ctx.font = '10px sans-serif';
       for (let t = Math.floor(minTemp*10)/10; t <= maxTemp; t += 0.1) {
@@ -1000,13 +988,11 @@
         ctx.stroke();
       }
 
-      // X-Beschriftungen
       for (let d = 1; d <= maxDay; d += 5) {
         const xPos = x(d);
         ctx.fillText(d, xPos-5, padding.top + chartH + 15);
       }
 
-      // Datenpunkte und Linie
       if (days.length > 1) {
         ctx.beginPath();
         ctx.strokeStyle = '#3366cc';
@@ -1025,7 +1011,6 @@
         });
       }
 
-      // Tieflagenlinie
       if (analysis) {
         ctx.beginPath();
         ctx.strokeStyle = 'red';
@@ -1038,7 +1023,6 @@
         ctx.fillText('HT '+analysis.ht.toFixed(1), padding.left+chartW-40, y(analysis.ht)-5);
 
         if (analysis.highStart) {
-          // Hochlagenlinie
           ctx.beginPath();
           ctx.strokeStyle = 'green';
           ctx.setLineDash([5,3]);
@@ -1049,7 +1033,6 @@
           ctx.fillStyle = 'green';
           ctx.fillText('Hoch '+analysis.highAvg.toFixed(1), padding.left+chartW-40, y(analysis.highAvg)-5);
 
-          // Vertikale Linie für ersten Hochlagentag
           const xHigh = x(analysis.highStart + 1);
           ctx.beginPath();
           ctx.strokeStyle = 'orange';
@@ -1059,6 +1042,40 @@
           ctx.stroke();
           ctx.setLineDash([]);
         }
+      }
+    }
+
+    async function renderTemp() {
+      const allData = await getAllData();
+      const cycles = getTemperatureChart(allData);
+      let html = '<h3>🌡️ Basaltemperatur</h3>';
+      if (!cycles || cycles.length === 0) {
+        html += '<p>Keine Temperaturdaten vorhanden. Aktiviere in den Einstellungen die erweiterten Einträge und trage deine Aufwachtemperatur ein.</p>';
+      } else {
+        html += '<div class="chart-container">';
+        html += '<label>Zyklus wählen:</label>';
+        html += '<select id="cycle-select">';
+        cycles.forEach((c, i) => {
+          const startDate = new Date(parseDate(c.start)).toLocaleDateString('de-DE');
+          const selected = (i === cycles.length-1) ? 'selected' : '';
+          html += `<option value="${i}" ${selected}>${startDate}</option>`;
+        });
+        html += '</select>';
+        html += '<canvas id="tempCanvas"></canvas></div>';
+      }
+      document.getElementById('temp-content').innerHTML = html;
+
+      if (cycles && cycles.length > 0) {
+        const canvas = document.getElementById('tempCanvas');
+        const select = document.getElementById('cycle-select');
+        const drawSelected = () => {
+          const idx = parseInt(select.value);
+          const cycle = cycles[idx];
+          const analysis = analyzeNFP(cycle);
+          drawChart(canvas, cycle, analysis);
+        };
+        select.addEventListener('change', drawSelected);
+        drawSelected();
       }
     }
 
@@ -1074,37 +1091,7 @@
       }
       const starts = allData.filter(e=>e.bleeding?.active).map(e=>e.date).sort();
       if (starts.length) html += `<p>🗓️ Periodenstarts: ${starts.length}</p><p>Letzte: ${new Date(parseDate(starts[starts.length-1])).toLocaleDateString('de-DE')}</p>`;
-
-      // Temperaturdiagramm
-      const tempData = getTemperatureChart(allData);
-      if (tempData) {
-        html += '<div class="chart-container">';
-        html += '<label>Zyklus wählen:</label>';
-        html += '<select id="cycle-select">';
-        tempData.cycles.forEach((c, i) => {
-          const startDate = new Date(parseDate(c.start)).toLocaleDateString('de-DE');
-          const selected = (i === tempData.cycles.length-1) ? 'selected' : '';
-          html += `<option value="${i}" ${selected}>${startDate}</option>`;
-        });
-        html += '</select>';
-        html += '<canvas id="tempCanvas"></canvas></div>';
-      }
-
       document.getElementById('stats-content').innerHTML = html;
-
-      // Diagramm zeichnen, falls vorhanden
-      if (tempData) {
-        const canvas = document.getElementById('tempCanvas');
-        const select = document.getElementById('cycle-select');
-        const drawSelected = () => {
-          const idx = parseInt(select.value);
-          const cycle = tempData.cycles[idx];
-          const analysis = analyzeNFP(cycle);
-          drawChart(canvas, cycle, analysis);
-        };
-        select.addEventListener('change', drawSelected);
-        drawSelected();
-      }
     }
 
     function renderSettings() {
@@ -1138,6 +1125,7 @@
       else if (tab==='today') { showPanel('calendar-panel'); openDayModal(todayStr); }
       else if (tab==='history') { showPanel('history-panel'); renderHistory(); }
       else if (tab==='stats') { showPanel('stats-panel'); renderStats(); }
+      else if (tab==='temp') { showPanel('temp-panel'); renderTemp(); }
       else if (tab==='settings') { showPanel('settings-panel'); renderSettings(); }
     }
 
@@ -1145,6 +1133,7 @@
     document.getElementById('tab-today').addEventListener('click', ()=>switchTab('today'));
     document.getElementById('tab-history').addEventListener('click', ()=>switchTab('history'));
     document.getElementById('tab-stats').addEventListener('click', ()=>switchTab('stats'));
+    document.getElementById('tab-temp').addEventListener('click', ()=>switchTab('temp'));
     document.getElementById('tab-settings').addEventListener('click', ()=>switchTab('settings'));
 
     openDB().then(() => { renderCalendarView(); applyAdvancedMode(); });
