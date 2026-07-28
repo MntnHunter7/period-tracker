@@ -260,6 +260,10 @@
 
     .detail-row { display: flex; margin-bottom: 4px; }
     .detail-label { font-weight: 500; width: 110px; }
+
+    .chart-container { padding: 10px; background: #fff; border-radius: 10px; margin: 10px 0; }
+    .chart-container select { width: 100%; margin-bottom: 10px; }
+    canvas { display: block; width: 100%; height: auto; background: #fff; border-radius: 10px; }
   </style>
 </head>
 <body>
@@ -312,7 +316,6 @@
   </div>
 </div>
 
-<!-- Tageseintrag-Modal -->
 <div id="modal" class="modal-overlay hidden">
   <div class="modal">
     <h3 id="modal-date"></h3>
@@ -416,7 +419,6 @@
   </div>
 </div>
 
-<!-- Readonly Info Modal für Verlauf -->
 <div id="info-modal" class="modal-overlay hidden">
   <div class="modal" id="info-modal-content"></div>
 </div>
@@ -656,7 +658,6 @@
       selectedDateStr = dateStr;
       modalDateEl.textContent = new Date(parseDate(dateStr)).toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
       applyAdvancedMode();
-      // Reset range mode
       document.getElementById('range-mode').checked = false;
       document.getElementById('range-fields').classList.add('hidden');
       document.getElementById('bleeding-active').disabled = false;
@@ -679,7 +680,6 @@
 
     function closeModal() { modal.classList.add('hidden'); selectedDateStr=null; }
 
-    // Neue Logik für Zeitraum
     document.getElementById('range-mode').addEventListener('change', function() {
       const rangeMode = this.checked;
       const rangeFields = document.getElementById('range-fields');
@@ -690,7 +690,6 @@
         bleedingCheck.checked = true;
         bleedingCheck.disabled = true;
         intensitySelect.classList.remove('hidden');
-        // Von-Datum auf angeklickten Tag setzen
         document.getElementById('range-from').value = selectedDateStr;
         document.getElementById('range-to').value = selectedDateStr;
       } else {
@@ -725,7 +724,6 @@
         const fromDate = parseDate(from);
         const toDate = parseDate(to);
         if (fromDate > toDate) { alert('Das Bis-Datum muss nach dem Von-Datum liegen.'); return; }
-        // Alle Tage im Zeitraum markieren
         for (let d = new Date(fromDate); d <= toDate; d.setDate(d.getDate()+1)) {
           const ds = formatDate(d);
           const existing = await getDayData(ds);
@@ -740,7 +738,6 @@
           if (note) newData.note = note;
           if (customTags.length) newData.customTags = customTags;
           if (existing) {
-            // Bestehende Daten erhalten, nur bleeding überschreiben, andere Felder aktualisieren
             await saveDayData(ds, { ...existing, ...newData });
           } else {
             await saveDayData(ds, newData);
@@ -779,7 +776,7 @@
     document.getElementById('prev-month').addEventListener('click', ()=>{ currentMonth===0? (currentYear--,currentMonth=11) : currentMonth--; renderCalendarView(); });
     document.getElementById('next-month').addEventListener('click', ()=>{ currentMonth===11? (currentYear++,currentMonth=0) : currentMonth++; renderCalendarView(); });
     document.getElementById('today-btn').addEventListener('click', ()=>{ currentMonth=today.getMonth(); currentYear=today.getFullYear(); renderCalendarView(); });
-    document.getElementById('legend-btn').addEventListener('click', ()=>alert('Farben:\n🔴 Rot = Periode\n🟢 Hellgrün = gewöhnlich fruchtbar\n🟢 Kräftiges Grün = erhöht fruchtbar\n🟤 Dunkelgrün = Eisprung\n⚪ Grau = geringe Wahrscheinlichkeit\n\nKeine Farbe = geringe Wahrscheinlichkeit'));
+    document.getElementById('legend-btn').addEventListener('click', ()=>alert('Farben:\n🔴 Rot = Periode\n🟢 Hellgrün = gewöhnlich fruchtbar\n🟢 Kräftiges Grün = erhöht fruchtbar\n🟤 Dunkelgrün = Eisprung\n⚪ Grau = geringe Wahrscheinlichkeit'));
 
     const panels = ['calendar-panel','history-panel','stats-panel','settings-panel'];
     function showPanel(id) {
@@ -865,6 +862,206 @@
     }
     infoModal.addEventListener('click', e=>{ if(e.target===infoModal) infoModal.classList.add('hidden'); });
 
+    // ---------- TEMPERATUR-DIAGRAMM ----------
+    function getTemperatureChart(allData) {
+      // Ermittle alle Zyklen-Startdaten aus den Blutungsdaten
+      const bleedingDays = allData.filter(e=>e.bleeding?.active).sort((a,b)=>a.date.localeCompare(b.date));
+      if (bleedingDays.length < 2) return null; // zu wenig Daten
+      const startDates = [];
+      let prev = null;
+      for (let e of bleedingDays) {
+        if (!prev || new Date(e.date)-new Date(prev) > 86400000*1.5) startDates.push(e.date);
+        prev = e.date;
+      }
+      if (startDates.length < 2) return null;
+
+      // Für jeden Zyklus (außer dem aktuellen, der noch nicht abgeschlossen sein könnte) die Temperaturdaten sammeln
+      const cycles = [];
+      for (let i = 0; i < startDates.length - 1; i++) {
+        const start = startDates[i];
+        const end = startDates[i+1]; // Ende ist der Tag vor dem nächsten Start
+        const cycleDays = [];
+        let d = new Date(parseDate(start));
+        const endDate = new Date(parseDate(end));
+        let dayNum = 1;
+        while (d < endDate) {
+          const ds = formatDate(d);
+          const entry = allData.find(e=>e.date===ds);
+          if (entry && entry.temperature) {
+            cycleDays.push({ day: dayNum, temp: entry.temperature, date: ds });
+          }
+          d.setDate(d.getDate()+1);
+          dayNum++;
+        }
+        if (cycleDays.length >= 6) { // mind. 6 Messwerte für NFP
+          cycles.push({ start, days: cycleDays });
+        }
+      }
+      // Auch den aktuellen (letzten) Zyklus betrachten, wenn er genügend Messwerte hat
+      if (startDates.length > 0) {
+        const lastStart = startDates[startDates.length-1];
+        const d = new Date(parseDate(lastStart));
+        const cycleDays = [];
+        let dayNum = 1;
+        while (d <= today) {
+          const ds = formatDate(d);
+          const entry = allData.find(e=>e.date===ds);
+          if (entry && entry.temperature) {
+            cycleDays.push({ day: dayNum, temp: entry.temperature, date: ds });
+          }
+          d.setDate(d.getDate()+1);
+          dayNum++;
+        }
+        if (cycleDays.length >= 6) {
+          cycles.push({ start: lastStart, days: cycleDays });
+        }
+      }
+      if (cycles.length === 0) return null;
+
+      // Nehme den letzten Zyklus als Default
+      const defaultCycle = cycles[cycles.length-1];
+      return { cycles, defaultCycle };
+    }
+
+    function analyzeNFP(cycle) {
+      const days = cycle.days; // Array von {day, temp}
+      if (days.length < 6) return null;
+      // Tieflage: erste 6 gültige Werte (die ersten 6 Tage mit Messungen)
+      const firstSix = days.slice(0, 6).map(d=>d.temp);
+      const ht = Math.max(...firstSix); // höchste Tieflagetemperatur
+      // Suche ab Tag 7 nach 3 aufeinanderfolgenden Tagen mit Temperatur > ht + 0.2
+      let highStart = -1;
+      for (let i = 6; i < days.length - 2; i++) {
+        if (days[i].temp > ht + 0.2 && days[i+1].temp > ht + 0.2 && days[i+2].temp > ht + 0.2) {
+          highStart = i; // erster Tag der Hochlage
+          break;
+        }
+      }
+      if (highStart === -1) return { ht, highStart: null, highAvg: null };
+      // Hochlagen-Durchschnitt (erste 3 Werte der Hochlage)
+      const highTemps = days.slice(highStart, highStart+3).map(d=>d.temp);
+      const highAvg = highTemps.reduce((a,b)=>a+b,0) / 3;
+      return { ht, highStart, highAvg };
+    }
+
+    function drawChart(canvas, cycle, analysis) {
+      const ctx = canvas.getContext('2d');
+      const width = canvas.width = Math.min(400, window.innerWidth - 40);
+      const height = canvas.height = 200;
+      const padding = { top: 20, right: 10, bottom: 30, left: 40 };
+      const chartW = width - padding.left - padding.right;
+      const chartH = height - padding.top - padding.bottom;
+
+      ctx.clearRect(0,0,width,height);
+      
+      // Achsen
+      const days = cycle.days;
+      const maxDay = Math.max(days[days.length-1].day, 30);
+      const temps = days.map(d=>d.temp);
+      const minTemp = Math.min(...temps) - 0.2;
+      const maxTemp = Math.max(...temps) + 0.2;
+
+      function x(day) { return padding.left + (day-1) / (maxDay-1) * chartW; }
+      function y(temp) { return padding.top + chartH - (temp - minTemp) / (maxTemp - minTemp) * chartH; }
+
+      // Hintergrund: Tieflage hellblau, Hochlage hellgrün
+      if (analysis && analysis.highStart) {
+        const xStart = x(1);
+        const xHigh = x(analysis.highStart + 1);
+        ctx.fillStyle = 'rgba(173,216,230,0.3)';
+        ctx.fillRect(xStart, padding.top, xHigh - xStart, chartH);
+        const xEnd = x(maxDay);
+        ctx.fillStyle = 'rgba(144,238,144,0.3)';
+        ctx.fillRect(xHigh, padding.top, xEnd - xHigh, chartH);
+      }
+
+      // X-Achse
+      ctx.beginPath();
+      ctx.strokeStyle = '#ccc';
+      ctx.moveTo(padding.left, padding.top + chartH);
+      ctx.lineTo(padding.left + chartW, padding.top + chartH);
+      ctx.stroke();
+      // Y-Achse
+      ctx.beginPath();
+      ctx.moveTo(padding.left, padding.top);
+      ctx.lineTo(padding.left, padding.top + chartH);
+      ctx.stroke();
+
+      // Y-Beschriftungen
+      ctx.fillStyle = '#666';
+      ctx.font = '10px sans-serif';
+      for (let t = Math.floor(minTemp*10)/10; t <= maxTemp; t += 0.1) {
+        const yPos = y(t);
+        ctx.fillText(t.toFixed(1), 5, yPos+3);
+        ctx.beginPath();
+        ctx.strokeStyle = '#eee';
+        ctx.moveTo(padding.left, yPos);
+        ctx.lineTo(padding.left+chartW, yPos);
+        ctx.stroke();
+      }
+
+      // X-Beschriftungen
+      for (let d = 1; d <= maxDay; d += 5) {
+        const xPos = x(d);
+        ctx.fillText(d, xPos-5, padding.top + chartH + 15);
+      }
+
+      // Datenpunkte und Linie
+      if (days.length > 1) {
+        ctx.beginPath();
+        ctx.strokeStyle = '#3366cc';
+        ctx.lineWidth = 2;
+        ctx.moveTo(x(days[0].day), y(days[0].temp));
+        for (let i=1; i<days.length; i++) {
+          ctx.lineTo(x(days[i].day), y(days[i].temp));
+        }
+        ctx.stroke();
+
+        ctx.fillStyle = '#3366cc';
+        days.forEach(d => {
+          ctx.beginPath();
+          ctx.arc(x(d.day), y(d.temp), 3, 0, 2*Math.PI);
+          ctx.fill();
+        });
+      }
+
+      // Tieflagenlinie
+      if (analysis) {
+        ctx.beginPath();
+        ctx.strokeStyle = 'red';
+        ctx.setLineDash([5,3]);
+        ctx.moveTo(padding.left, y(analysis.ht));
+        ctx.lineTo(padding.left+chartW, y(analysis.ht));
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = 'red';
+        ctx.fillText('HT '+analysis.ht.toFixed(1), padding.left+chartW-40, y(analysis.ht)-5);
+
+        if (analysis.highStart) {
+          // Hochlagenlinie
+          ctx.beginPath();
+          ctx.strokeStyle = 'green';
+          ctx.setLineDash([5,3]);
+          ctx.moveTo(padding.left, y(analysis.highAvg));
+          ctx.lineTo(padding.left+chartW, y(analysis.highAvg));
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = 'green';
+          ctx.fillText('Hoch '+analysis.highAvg.toFixed(1), padding.left+chartW-40, y(analysis.highAvg)-5);
+
+          // Vertikale Linie für ersten Hochlagentag
+          const xHigh = x(analysis.highStart + 1);
+          ctx.beginPath();
+          ctx.strokeStyle = 'orange';
+          ctx.setLineDash([5,3]);
+          ctx.moveTo(xHigh, padding.top);
+          ctx.lineTo(xHigh, padding.top + chartH);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      }
+    }
+
     async function renderStats() {
       const allData = await getAllData();
       const pred = calculatePredictions(allData);
@@ -872,10 +1069,42 @@
       if (pred.medianCycle) {
         html += `<p>🔄 Zykluslänge: <strong>${pred.medianCycle} Tage</strong></p>`;
         html += `<p>🩸 Nächste Periode: <strong>${new Date(parseDate(pred.nextStart)).toLocaleDateString('de-DE')}</strong></p>`;
-      } else html += '<p>Trage mindestens zwei Perioden ein.</p>';
+      } else {
+        html += '<p>Trage mindestens zwei Perioden ein.</p>';
+      }
       const starts = allData.filter(e=>e.bleeding?.active).map(e=>e.date).sort();
       if (starts.length) html += `<p>🗓️ Periodenstarts: ${starts.length}</p><p>Letzte: ${new Date(parseDate(starts[starts.length-1])).toLocaleDateString('de-DE')}</p>`;
+
+      // Temperaturdiagramm
+      const tempData = getTemperatureChart(allData);
+      if (tempData) {
+        html += '<div class="chart-container">';
+        html += '<label>Zyklus wählen:</label>';
+        html += '<select id="cycle-select">';
+        tempData.cycles.forEach((c, i) => {
+          const startDate = new Date(parseDate(c.start)).toLocaleDateString('de-DE');
+          const selected = (i === tempData.cycles.length-1) ? 'selected' : '';
+          html += `<option value="${i}" ${selected}>${startDate}</option>`;
+        });
+        html += '</select>';
+        html += '<canvas id="tempCanvas"></canvas></div>';
+      }
+
       document.getElementById('stats-content').innerHTML = html;
+
+      // Diagramm zeichnen, falls vorhanden
+      if (tempData) {
+        const canvas = document.getElementById('tempCanvas');
+        const select = document.getElementById('cycle-select');
+        const drawSelected = () => {
+          const idx = parseInt(select.value);
+          const cycle = tempData.cycles[idx];
+          const analysis = analyzeNFP(cycle);
+          drawChart(canvas, cycle, analysis);
+        };
+        select.addEventListener('change', drawSelected);
+        drawSelected();
+      }
     }
 
     function renderSettings() {
